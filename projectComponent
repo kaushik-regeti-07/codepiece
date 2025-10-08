@@ -1,0 +1,101 @@
+import React from 'react';
+
+// Helper function to convert data to CSV format
+const convertToCSV = (data) => {
+  if (!data || !data.length) return '';
+  const headers = Object.keys(data[0]).join(',');
+  const rows = data.map(row => Object.values(row).join(','));
+  return [headers, ...rows].join('\n');
+};
+
+export function DownloadCSVButton({ data }) {
+  const handleDownload = () => {
+    const csv = convertToCSV(data);
+    if (!csv) return;
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'audit-logs.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <button type="button" onClick={handleDownload}>
+      Download CSV
+    </button>
+  );
+}
+
+
+
+
+
+
+
+
+import React from 'react';
+import { DownloadCSVButton } from './DownloadCSVButton';
+
+// Sample static audit log data
+const auditLogs = [
+  { id: 1, actor: 'admin1', action: 'APPROVE_SUBSCRIPTION', entity: 'subscription', entityId: '123', ip: '192.168.1.2', userAgent: 'Chrome', timestamp: '2025-10-09T12:00:00Z' },
+  { id: 2, actor: 'opsuser', action: 'SYNC_EVENT', entity: 'ingestion_event', entityId: '456', ip: '192.168.1.3', userAgent: 'Firefox', timestamp: '2025-10-09T12:30:00Z' },
+  { id: 3, actor: 'admin2', action: 'REJECT_SUBSCRIPTION', entity: 'subscription', entityId: '789', ip: '192.168.1.4', userAgent: 'Edge', timestamp: '2025-10-09T13:00:00Z' },
+];
+
+export function AuditLogViewer() {
+  return (
+    <div>
+      <h2>Audit Log Viewer</h2>
+      <DownloadCSVButton data={auditLogs} />
+      <table border="1" cellPadding="5" cellSpacing="0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Entity</th>
+            <th>Entity ID</th>
+            <th>IP Address</th>
+            <th>User Agent</th>
+            <th>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody>
+          {auditLogs.map(log => (
+            <tr key={log.id}>
+              <td>{log.id}</td>
+              <td>{log.actor}</td>
+              <td>{log.action}</td>
+              <td>{log.entity}</td>
+              <td>{log.entityId}</td>
+              <td>{log.ip}</td>
+              <td>{log.userAgent}</td>
+              <td>{log.timestamp}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+
+
+
+import React from 'react';
+import { AuditLogViewer } from './AuditLogViewer';
+
+function App() {
+  return (
+    <div>
+      <AuditLogViewer />
+    </div>
+  );
+}
+
+export default App;
