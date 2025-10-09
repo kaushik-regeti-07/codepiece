@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Helper function to convert data to CSV format
+// Helper function to convert data to CSV
 const convertToCSV = (data) => {
   if (!data || !data.length) return '';
   const headers = Object.keys(data[0]).join(',');
@@ -12,7 +12,6 @@ export function DownloadCSVButton({ data }) {
   const handleDownload = () => {
     const csv = convertToCSV(data);
     if (!csv) return;
-
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -23,7 +22,17 @@ export function DownloadCSVButton({ data }) {
   };
 
   return (
-    <button type="button" onClick={handleDownload}>
+    <button
+      className="btn"
+      style={{
+        backgroundColor: '#38D200', // SC green
+        color: 'white',
+        fontWeight: 'bold',
+        marginBottom: '15px'
+      }}
+      type="button"
+      onClick={handleDownload}
+    >
       Download CSV
     </button>
   );
@@ -33,29 +42,35 @@ export function DownloadCSVButton({ data }) {
 
 
 
-
-
-
 import React from 'react';
 import { DownloadCSVButton } from './DownloadCSVButton';
 
-// Sample static audit log data
+// Static audit log data
 const auditLogs = [
-  { id: 1, actor: 'admin1', action: 'APPROVE_SUBSCRIPTION', entity: 'subscription', entityId: '123', ip: '192.168.1.2', userAgent: 'Chrome', timestamp: '2025-10-09T12:00:00Z' },
-  { id: 2, actor: 'opsuser', action: 'SYNC_EVENT', entity: 'ingestion_event', entityId: '456', ip: '192.168.1.3', userAgent: 'Firefox', timestamp: '2025-10-09T12:30:00Z' },
-  { id: 3, actor: 'admin2', action: 'REJECT_SUBSCRIPTION', entity: 'subscription', entityId: '789', ip: '192.168.1.4', userAgent: 'Edge', timestamp: '2025-10-09T13:00:00Z' },
+  { id: 1, actor: 'admin1', action: 'APPROVE_SUBSCRIPTION', entity: 'subscription', entityId: '123', ip: '192.168.1.2', userAgent: 'Chrome', timestamp: 'Oct 9, 2025, 5:30 PM' },
+  { id: 2, actor: 'opsuser', action: 'SYNC_EVENT', entity: 'ingestion_event', entityId: '456', ip: '192.168.1.3', userAgent: 'Firefox', timestamp: 'Oct 9, 2025, 6:00 PM' },
+  { id: 3, actor: 'admin2', action: 'REJECT_SUBSCRIPTION', entity: 'subscription', entityId: '789', ip: '192.168.1.4', userAgent: 'Edge', timestamp: 'Oct 9, 2025, 6:30 PM' },
+  { id: 4, actor: 'admin1', action: 'UPLOAD_REPORT', entity: 'report', entityId: '101', ip: '192.168.1.2', userAgent: 'Chrome', timestamp: 'Oct 9, 2025, 7:30 PM' },
+  { id: 5, actor: 'opsuser', action: 'SYNC_COMPLETE', entity: 'ingestion_event', entityId: '457', ip: '192.168.1.3', userAgent: 'Firefox', timestamp: 'Oct 9, 2025, 8:00 PM' },
 ];
+
+// Standard Chartered color mapping
+const actionColor = {
+  APPROVE_SUBSCRIPTION: '#38D200',     // Green
+  REJECT_SUBSCRIPTION: '#EA3307',      // Red
+  SYNC_EVENT: '#0473EA',               // Blue
+  UPLOAD_REPORT: '#0473EA',
+  SYNC_COMPLETE: '#38D200',
+};
 
 export function AuditLogViewer() {
   return (
-    <div>
-      <h2>Audit Log Viewer</h2>
+    <div className="container mt-4">
+      <h2 className="mb-3">Audit Log Viewer</h2>
       <DownloadCSVButton data={auditLogs} />
-      <table border="1" cellPadding="5" cellSpacing="0">
-        <thead>
+      <table className="table table-bordered table-hover">
+        <thead className="table-light">
           <tr>
-            <th>ID</th>
-            <th>Actor</th>
             <th>Action</th>
             <th>Entity</th>
             <th>Entity ID</th>
@@ -67,9 +82,18 @@ export function AuditLogViewer() {
         <tbody>
           {auditLogs.map(log => (
             <tr key={log.id}>
-              <td>{log.id}</td>
-              <td>{log.actor}</td>
-              <td>{log.action}</td>
+              <td>
+                <span
+                  className="badge"
+                  style={{
+                    backgroundColor: actionColor[log.action] || '#DBDBDB',
+                    color: 'white',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {log.action}
+                </span>
+              </td>
               <td>{log.entity}</td>
               <td>{log.entityId}</td>
               <td>{log.ip}</td>
