@@ -1,113 +1,372 @@
-import React from 'react';
+import React, { useState } from 'react';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import './AuditLogs.css';
 
-// Helper function to convert data to CSV
-const convertToCSV = (data) => {
-  if (!data || !data.length) return '';
-  const headers = Object.keys(data[0]).join(',');
-  const rows = data.map(row => Object.values(row).join(','));
-  return [headers, ...rows].join('\n');
-};
+const AuditLogs = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterAction, setFilterAction] = useState('All Actions');
 
-export function DownloadCSVButton({ data }) {
-  const handleDownload = () => {
-    const csv = convertToCSV(data);
-    if (!csv) return;
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'audit-logs.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const auditData = [
+    { id: 1, timestamp: '2024-01-10 14:32:15', user: 'admin@rwtool.com', action: 'USER_APPROVED', details: 'Approved subscription request for john.doe@ex...', ipAddress: '192.168.1.100', status: 'success' },
+    { id: 2, timestamp: '2024-01-10 14:28:43', user: 'admin@rwtool.com', action: 'REPORT_UPLOAD', details: 'Uploaded Q4 Financial Report', ipAddress: '192.168.1.100', status: 'success' },
+    { id: 3, timestamp: '2024-01-10 14:15:22', user: 'jane.smith@rwtool.com', action: 'USER_LOGIN', details: 'Admin login successful', ipAddress: '192.168.1.105', status: 'success' },
+    { id: 4, timestamp: '2024-01-10 13:45:11', user: 'unknown', action: 'LOGIN_FAILED', details: 'Failed login attempt for admin account', ipAddress: '203.45.67.89', status: 'failed' }
+  ];
+
+  const filteredData = auditData.filter(log => {
+    const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) || log.details.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterAction === 'All Actions' || log.action === filterAction;
+    return matchesSearch && matchesFilter;
+  });
 
   return (
-    <button
-      className="btn"
-      style={{
-        backgroundColor: '#38D200', // SC green
-        color: 'white',
-        fontWeight: 'bold',
-        marginBottom: '15px'
-      }}
-      type="button"
-      onClick={handleDownload}
-    >
-      Download CSV
-    </button>
-  );
-}
+    <div className="audit-logs-container">
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="audit-title">Audit Logs</h2>
+          <p className="audit-subtitle">Track all system activities and user actions</p>
+        </div>
+        <button className="btn btn-export">
+          <i className="bi bi-download me-2"></i>Export Logs
+        </button>
+      </div>
 
+      {/* Stats Cards */}
+      <div className="row g-4 mb-4">
+        <div className="col-md-3">
+          <div className="stats-card">
+            <div className="stats-label">Total Events</div>
+            <div className="stats-value">1,248</div>
+            <div className="stats-period">Last 30 days</div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="stats-card">
+            <div className="stats-label">User Actions</div>
+            <div className="stats-value">892</div>
+            <div className="stats-period">71.5% of total</div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="stats-card">
+            <div className="stats-label">Failed Attempts</div>
+            <div className="stats-value stats-value-danger">23</div>
+            <div className="stats-period stats-period-danger">Security alerts</div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="stats-card">
+            <div className="stats-label">Report Changes</div>
+            <div className="stats-value">156</div>
+            <div className="stats-period">Uploads & deletions</div>
+          </div>
+        </div>
+      </div>
 
+      {/* Activity Log Section */}
+      <div className="activity-section">
+        <div className="mb-4">
+          <h4 className="activity-title">Activity Log</h4>
+          <p className="activity-subtitle mb-0">Detailed record of all system activities</p>
+        </div>
 
+        {/* Filters */}
+        <div className="row g-3 mb-4">
+          <div className="col-md-3">
+            <select className="form-select" value={filterAction} onChange={e => setFilterAction(e.target.value)}>
+              <option>All Actions</option>
+              <option>USER_APPROVED</option>
+              <option>REPORT_UPLOAD</option>
+              <option>USER_LOGIN</option>
+              <option>LOGIN_FAILED</option>
+            </select>
+          </div>
+          <div className="col-md-7">
+            <div className="input-group">
+              <span className="input-group-text bg-white border-end-0">
+                <i className="bi bi-search text-muted"></i>
+              </span>
+              <input 
+                type="text" 
+                className="form-control border-start-0" 
+                placeholder="Search logs..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+              />
+            </div>
+          </div>
+          <div className="col-md-2">
+            <button className="btn btn-outline-secondary w-100">
+              <i className="bi bi-funnel"></i>
+            </button>
+          </div>
+        </div>
 
-
-import React from 'react';
-import { DownloadCSVButton } from './DownloadCSVButton';
-
-// Static audit log data
-const auditLogs = [
-  { id: 1, actor: 'admin1', action: 'APPROVE_SUBSCRIPTION', entity: 'subscription', entityId: '123', ip: '192.168.1.2', userAgent: 'Chrome', timestamp: 'Oct 9, 2025, 5:30 PM' },
-  { id: 2, actor: 'opsuser', action: 'SYNC_EVENT', entity: 'ingestion_event', entityId: '456', ip: '192.168.1.3', userAgent: 'Firefox', timestamp: 'Oct 9, 2025, 6:00 PM' },
-  { id: 3, actor: 'admin2', action: 'REJECT_SUBSCRIPTION', entity: 'subscription', entityId: '789', ip: '192.168.1.4', userAgent: 'Edge', timestamp: 'Oct 9, 2025, 6:30 PM' },
-  { id: 4, actor: 'admin1', action: 'UPLOAD_REPORT', entity: 'report', entityId: '101', ip: '192.168.1.2', userAgent: 'Chrome', timestamp: 'Oct 9, 2025, 7:30 PM' },
-  { id: 5, actor: 'opsuser', action: 'SYNC_COMPLETE', entity: 'ingestion_event', entityId: '457', ip: '192.168.1.3', userAgent: 'Firefox', timestamp: 'Oct 9, 2025, 8:00 PM' },
-];
-
-// Standard Chartered color mapping
-const actionColor = {
-  APPROVE_SUBSCRIPTION: '#38D200',     // Green
-  REJECT_SUBSCRIPTION: '#EA3307',      // Red
-  SYNC_EVENT: '#0473EA',               // Blue
-  UPLOAD_REPORT: '#0473EA',
-  SYNC_COMPLETE: '#38D200',
-};
-
-export function AuditLogViewer() {
-  return (
-    <div className="container mt-4">
-      <h2 className="mb-3">Audit Log Viewer</h2>
-      <DownloadCSVButton data={auditLogs} />
-      <table className="table table-bordered table-hover">
-        <thead className="table-light">
-          <tr>
-            <th>Action</th>
-            <th>Entity</th>
-            <th>Entity ID</th>
-            <th>IP Address</th>
-            <th>User Agent</th>
-            <th>Timestamp</th>
-          </tr>
-        </thead>
-        <tbody>
-          {auditLogs.map(log => (
-            <tr key={log.id}>
-              <td>
-                <span
-                  className="badge"
-                  style={{
-                    backgroundColor: actionColor[log.action] || '#DBDBDB',
-                    color: 'white',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  {log.action}
-                </span>
-              </td>
-              <td>{log.entity}</td>
-              <td>{log.entityId}</td>
-              <td>{log.ip}</td>
-              <td>{log.userAgent}</td>
-              <td>{log.timestamp}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        {/* Table */}
+        <div className="table-responsive">
+          <table className="table audit-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Details</th>
+                <th>IP Address</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.map(log => (
+                <tr key={log.id}>
+                  <td className="text-muted">{log.timestamp}</td>
+                  <td className="fw-semibold">{log.user}</td>
+                  <td><span className="action-badge">{log.action}</span></td>
+                  <td>{log.details}</td>
+                  <td className="text-muted">{log.ipAddress}</td>
+                  <td><span className={`status-badge status-${log.status}`}>{log.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
+};
+
+export default AuditLogs;
+
+
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+/* Container */
+.audit-logs-container {
+  padding: 2rem;
+  background-color: #f8f9fc;
 }
 
+/* Header - Fixed gradient text clipping */
+.audit-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #0473BA, #38D200);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.25rem;
+  line-height: 1.3;
+}
 
+.audit-subtitle {
+  color: #64748b;
+  margin-bottom: 0;
+  font-size: 1rem;
+}
+
+/* Export Button */
+.btn-export {
+  background: linear-gradient(135deg, #0473BA, #0590d9);
+  border: none;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(4, 115, 186, 0.2);
+  transition: all 0.3s ease;
+  padding: 0.625rem 1.5rem;
+}
+
+.btn-export:hover {
+  background: linear-gradient(135deg, #0590d9, #0473BA);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(4, 115, 186, 0.3);
+  color: white;
+}
+
+/* Stats Cards */
+.stats-card {
+  background: white;
+  padding: 1.75rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-left: 4px solid #0473BA;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+
+.stats-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, rgba(4, 115, 186, 0.05), rgba(56, 210, 0, 0.05));
+  border-radius: 50%;
+  transform: translate(30%, -30%);
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(4, 115, 186, 0.15);
+  border-left-color: #38D200;
+}
+
+.stats-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+  position: relative;
+  z-index: 1;
+  line-height: 1.2;
+}
+
+.stats-value-danger {
+  color: #dc2626;
+}
+
+.stats-period {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  position: relative;
+  z-index: 1;
+}
+
+.stats-period-danger {
+  color: #f87171;
+}
+
+/* Activity Section */
+.activity-section {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.activity-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.activity-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+/* Focus States */
+.form-select:focus,
+.form-control:focus {
+  border-color: #0473BA;
+  box-shadow: 0 0 0 0.2rem rgba(4, 115, 186, 0.15);
+}
+
+/* Table */
+.audit-table {
+  margin-top: 1rem;
+}
+
+.audit-table thead th {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 2px solid #0473BA;
+  padding: 1.25rem 1rem;
+  white-space: nowrap;
+}
+
+.audit-table tbody td {
+  padding: 1.25rem 1rem;
+  vertical-align: middle;
+  font-size: 0.95rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.audit-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.audit-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(4, 115, 186, 0.03), rgba(56, 210, 0, 0.03));
+  transform: scale(1.001);
+}
+
+/* Badges */
+.action-badge {
+  background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: #0473BA;
+  border: 1px solid rgba(4, 115, 186, 0.2);
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.status-badge {
+  padding: 0.5rem 1.25rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.status-success {
+  background: linear-gradient(135deg, #38D200, #32bd00);
+  color: white;
+  box-shadow: 0 2px 6px rgba(56, 210, 0, 0.3);
+}
+
+.status-failed {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .audit-logs-container {
+    padding: 1rem;
+  }
+
+  .audit-title {
+    font-size: 1.75rem;
+  }
+
+  .stats-value {
+    font-size: 2rem;
+  }
+
+  .audit-table {
+    font-size: 0.85rem;
+  }
+}
 
 
 
