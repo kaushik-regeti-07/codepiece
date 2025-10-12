@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap-icons/font/bootstrap-icons.css';
 import './AuditLogs.css';
 
 const AuditLogs = () => {
@@ -29,7 +28,7 @@ const AuditLogs = () => {
           <p className="audit-subtitle">Track all system activities and user actions</p>
         </div>
         <button className="btn btn-export">
-          <i className="bi bi-download me-2"></i>Export Logs
+          Export Logs
         </button>
       </div>
 
@@ -86,7 +85,7 @@ const AuditLogs = () => {
           <div className="col-md-7">
             <div className="input-group">
               <span className="input-group-text bg-white border-end-0">
-                <i className="bi bi-search text-muted"></i>
+                🔍
               </span>
               <input 
                 type="text" 
@@ -99,7 +98,7 @@ const AuditLogs = () => {
           </div>
           <div className="col-md-2">
             <button className="btn btn-outline-secondary w-100">
-              <i className="bi bi-funnel"></i>
+              ⚙️
             </button>
           </div>
         </div>
@@ -139,8 +138,8 @@ const AuditLogs = () => {
 export default AuditLogs;
 
 
+
 @import 'bootstrap/dist/css/bootstrap.min.css';
-@import 'bootstrap-icons/font/bootstrap-icons.css';
 
 /* Container */
 .audit-logs-container {
