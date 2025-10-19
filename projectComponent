@@ -1,23 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Download, Clock, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './AuditLogs.css';
 
 const AuditLogs = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('All Actions');
+  const [filterRole, setFilterRole] = useState('All Users');
+  const [dateRange, setDateRange] = useState('7days');
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
+  // Replace with your API call
   const auditData = [
-    { id: 1, timestamp: '2024-01-10 14:32:15', user: 'admin@rwtool.com', action: 'USER_APPROVED', details: 'Approved subscription request for john.doe@ex...', ipAddress: '192.168.1.100', status: 'success' },
-    { id: 2, timestamp: '2024-01-10 14:28:43', user: 'admin@rwtool.com', action: 'REPORT_UPLOAD', details: 'Uploaded Q4 Financial Report', ipAddress: '192.168.1.100', status: 'success' },
-    { id: 3, timestamp: '2024-01-10 14:15:22', user: 'jane.smith@rwtool.com', action: 'USER_LOGIN', details: 'Admin login successful', ipAddress: '192.168.1.105', status: 'success' },
-    { id: 4, timestamp: '2024-01-10 13:45:11', user: 'unknown', action: 'LOGIN_FAILED', details: 'Failed login attempt for admin account', ipAddress: '203.45.67.89', status: 'failed' }
+    { id: 1, timestamp: '2024-01-10 14:32:15', user: 'admin@rwtool.com', role: 'Admin', action: 'USER_APPROVED', details: 'Approved subscription request for john.doe@example.com', status: 'success' },
+    { id: 2, timestamp: '2024-01-10 14:28:43', user: 'admin@rwtool.com', role: 'Admin', action: 'REPORT_UPLOAD', details: 'Uploaded Q4 Financial Report', status: 'success' },
+    { id: 3, timestamp: '2024-01-10 14:15:22', user: 'jane.smith@rwtool.com', role: 'Subscriber', action: 'REPORT_VIEW', details: 'Viewed Financial Report Q3 2024', status: 'success' },
+    { id: 4, timestamp: '2024-01-10 13:45:11', user: 'unknown', role: 'Subscriber', action: 'LOGIN_FAILED', details: 'Failed login attempt', status: 'failed' },
+    { id: 5, timestamp: '2024-01-10 13:30:22', user: 'admin@rwtool.com', role: 'Admin', action: 'USER_REJECTED', details: 'Rejected subscription request for inactive user', status: 'success' },
+    { id: 6, timestamp: '2024-01-10 12:55:33', user: 'subscriber@rwtool.com', role: 'Subscriber', action: 'REPORT_DOWNLOAD', details: 'Downloaded Operations Report July 2024', status: 'success' },
+    { id: 7, timestamp: '2024-01-10 12:20:15', user: 'john.doe@rwtool.com', role: 'Subscriber', action: 'USER_LOGIN', details: 'User logged in successfully', status: 'success' },
+    { id: 8, timestamp: '2024-01-10 11:45:00', user: 'admin@rwtool.com', role: 'Admin', action: 'DOMAIN_ADDED', details: 'Added new domain: marketing.reports.com', status: 'success' },
+    { id: 9, timestamp: '2024-01-10 11:30:15', user: 'subscriber2@rwtool.com', role: 'Subscriber', action: 'REPORT_VIEW', details: 'Viewed Marketing Report Q2 2024', status: 'success' },
+    { id: 10, timestamp: '2024-01-10 11:15:45', user: 'admin@rwtool.com', role: 'Admin', action: 'USER_APPROVED', details: 'Approved subscription request for alice@example.com', status: 'success' },
+    { id: 11, timestamp: '2024-01-10 10:55:30', user: 'subscriber3@rwtool.com', role: 'Subscriber', action: 'REPORT_DOWNLOAD', details: 'Downloaded HR Report June 2024', status: 'success' },
+    { id: 12, timestamp: '2024-01-10 10:40:20', user: 'admin@rwtool.com', role: 'Admin', action: 'REPORT_UPLOAD', details: 'Uploaded Annual Financial Statement', status: 'success' }
   ];
 
   const filteredData = auditData.filter(log => {
-    const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) || log.details.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterAction === 'All Actions' || log.action === filterAction;
-    return matchesSearch && matchesFilter;
+    const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) || log.details.toLowerCase().includes(searchTerm.toLowerCase()) || log.action.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesAction = filterAction === 'All Actions' || log.action === filterAction;
+    const matchesRole = filterRole === 'All Users' || log.role === filterRole;
+    return matchesSearch && matchesAction && matchesRole;
   });
+
+  const indexOfLastRecord = currentPage * recordsPerPage;
+  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+  const currentRecords = filteredData.slice(indexOfFirstRecord, indexOfLastRecord);
+  const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterAction, filterRole, dateRange]);
 
   return (
     <div className="audit-logs-container">
@@ -25,110 +47,125 @@ const AuditLogs = () => {
       <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
         <div>
           <h2 className="audit-title">Audit Logs</h2>
-          <p className="audit-subtitle">Track all system activities and user actions</p>
+          <p className="audit-subtitle">Monitor all admin and subscriber activities in real-time</p>
         </div>
         <button className="btn btn-export">
+          <Download size={18} className="me-2" />
           Export Logs
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-3">
-          <div className="stats-card">
-            <div className="stats-label">Total Events</div>
-            <div className="stats-value">1,248</div>
-            <div className="stats-period">Last 30 days</div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="stats-card">
-            <div className="stats-label">User Actions</div>
-            <div className="stats-value">892</div>
-            <div className="stats-period">71.5% of total</div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="stats-card">
-            <div className="stats-label">Failed Attempts</div>
-            <div className="stats-value stats-value-danger">23</div>
-            <div className="stats-period stats-period-danger">Security alerts</div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="stats-card">
-            <div className="stats-label">Report Changes</div>
-            <div className="stats-value">156</div>
-            <div className="stats-period">Uploads & deletions</div>
-          </div>
+      {/* Recent Activity */}
+      <div className="info-card mb-4">
+        <h5 className="card-header-title">
+          <Clock size={20} className="me-2" />
+          Recent Activity
+        </h5>
+        <div className="timeline">
+          {auditData.slice(0, 5).map(activity => (
+            <div key={activity.id} className="timeline-item">
+              <div className="timeline-dot"></div>
+              <div className="timeline-content">
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="role-badge-small">{activity.role}</span>
+                  <small className="text-muted">{activity.timestamp.split(' ')[1]}</small>
+                </div>
+                <div className="timeline-action">{activity.action}</div>
+                <div className="timeline-user">{activity.user}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Activity Log Section */}
+      {/* Activity Log */}
       <div className="activity-section">
         <div className="mb-4">
           <h4 className="activity-title">Activity Log</h4>
-          <p className="activity-subtitle mb-0">Detailed record of all system activities</p>
+          <p className="activity-subtitle mb-3">Complete audit trail of system activities</p>
+          {(filterAction !== 'All Actions' || filterRole !== 'All Users') && (
+            <div className="mb-3">
+              <small className="text-muted me-2">Active Filters:</small>
+              {filterAction !== 'All Actions' && <span className="filter-chip">{filterAction}</span>}
+              {filterRole !== 'All Users' && <span className="filter-chip">{filterRole}</span>}
+            </div>
+          )}
         </div>
 
         {/* Filters */}
         <div className="row g-3 mb-4">
-          <div className="col-md-3">
-            <select className="form-select" value={filterAction} onChange={e => setFilterAction(e.target.value)}>
-              <option>All Actions</option>
-              <option>USER_APPROVED</option>
-              <option>REPORT_UPLOAD</option>
-              <option>USER_LOGIN</option>
-              <option>LOGIN_FAILED</option>
+          <div className="col-md-2">
+            <select className="form-select" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
+              {['All Users', 'Admin', 'Subscriber'].map(opt => <option key={opt}>{opt}</option>)}
             </select>
           </div>
-          <div className="col-md-7">
-            <div className="input-group">
-              <span className="input-group-text bg-white border-end-0">
-                🔍
-              </span>
-              <input 
-                type="text" 
-                className="form-control border-start-0" 
-                placeholder="Search logs..." 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-              />
-            </div>
+          <div className="col-md-3">
+            <select className="form-select" value={filterAction} onChange={e => setFilterAction(e.target.value)}>
+              {['All Actions', 'USER_APPROVED', 'USER_REJECTED', 'REPORT_UPLOAD', 'REPORT_VIEW', 'REPORT_DOWNLOAD', 'USER_LOGIN', 'LOGIN_FAILED', 'DOMAIN_ADDED'].map(opt => <option key={opt}>{opt}</option>)}
+            </select>
           </div>
           <div className="col-md-2">
-            <button className="btn btn-outline-secondary w-100">
-              ⚙️
+            <select className="form-select" value={dateRange} onChange={e => setDateRange(e.target.value)}>
+              {[{v:'today',l:'Today'},{v:'7days',l:'Last 7 Days'},{v:'30days',l:'Last 30 Days'},{v:'90days',l:'Last 90 Days'}].map(opt => <option key={opt.v} value={opt.v}>{opt.l}</option>)}
+            </select>
+          </div>
+          <div className="col-md-4">
+            <div className="input-group">
+              <span className="input-group-text bg-white border-end-0">
+                <Search size={18} className="text-muted" />
+              </span>
+              <input type="text" className="form-control border-start-0" placeholder="Search by user, action, or details..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+          </div>
+          <div className="col-md-1">
+            <button className="btn btn-outline-secondary w-100" title="Advanced Filters">
+              <Filter size={18} />
             </button>
           </div>
+        </div>
+
+        {/* Table Info */}
+        <div className="mb-3 d-flex justify-content-between">
+          <small className="text-muted">Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredData.length)} of {filteredData.length} records</small>
+          <small className="text-muted">Page {currentPage} of {totalPages || 1}</small>
         </div>
 
         {/* Table */}
         <div className="table-responsive">
           <table className="table audit-table">
             <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>Details</th>
-                <th>IP Address</th>
-                <th>Status</th>
-              </tr>
+              <tr>{['Timestamp', 'User', 'Role', 'Action', 'Details', 'Status'].map(h => <th key={h}>{h}</th>)}</tr>
             </thead>
             <tbody>
-              {filteredData.map(log => (
+              {currentRecords.map(log => (
                 <tr key={log.id}>
                   <td className="text-muted">{log.timestamp}</td>
                   <td className="fw-semibold">{log.user}</td>
+                  <td><span className="role-badge">{log.role}</span></td>
                   <td><span className="action-badge">{log.action}</span></td>
                   <td>{log.details}</td>
-                  <td className="text-muted">{log.ipAddress}</td>
                   <td><span className={`status-badge status-${log.status}`}>{log.status}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="d-flex justify-content-between align-items-center mt-4">
+          <button className="btn btn-pagination" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>
+            <ChevronLeft size={18} className="me-1" />
+            Previous
+          </button>
+          <div className="pagination-info">
+            <span className="page-number">{currentPage}</span>
+            <span className="text-muted mx-2">of</span>
+            <span className="page-number">{totalPages || 1}</span>
+          </div>
+          <button className="btn btn-pagination" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0}>
+            Next
+            <ChevronRight size={18} className="ms-1" />
+          </button>
         </div>
       </div>
     </div>
@@ -147,14 +184,13 @@ export default AuditLogs;
   background-color: #f8f9fc;
 }
 
-/* Header - Fixed gradient text clipping */
+/* Header Section */
 .audit-title {
   font-size: 2.25rem;
   font-weight: 700;
   background: linear-gradient(135deg, #0473BA, #38D200);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text;
   margin-bottom: 0.75rem;
   padding-bottom: 0.25rem;
   line-height: 1.3;
@@ -162,7 +198,6 @@ export default AuditLogs;
 
 .audit-subtitle {
   color: #64748b;
-  margin-bottom: 0;
   font-size: 1rem;
 }
 
@@ -175,6 +210,8 @@ export default AuditLogs;
   box-shadow: 0 2px 8px rgba(4, 115, 186, 0.2);
   transition: all 0.3s ease;
   padding: 0.625rem 1.5rem;
+  display: flex;
+  align-items: center;
 }
 
 .btn-export:hover {
@@ -184,69 +221,21 @@ export default AuditLogs;
   color: white;
 }
 
-/* Stats Cards */
-.stats-card {
+/* Info Card */
+.info-card {
   background: white;
   padding: 1.75rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border-left: 4px solid #0473BA;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  height: 100%;
 }
 
-.stats-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 100px;
-  height: 100px;
-  background: linear-gradient(135deg, rgba(4, 115, 186, 0.05), rgba(56, 210, 0, 0.05));
-  border-radius: 50%;
-  transform: translate(30%, -30%);
-}
-
-.stats-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(4, 115, 186, 0.15);
-  border-left-color: #38D200;
-}
-
-.stats-label {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.stats-value {
-  font-size: 2.5rem;
+.card-header-title {
+  font-size: 1.1rem;
   font-weight: 700;
   color: #0f172a;
-  margin-bottom: 0.5rem;
-  position: relative;
-  z-index: 1;
-  line-height: 1.2;
-}
-
-.stats-value-danger {
-  color: #dc2626;
-}
-
-.stats-period {
-  font-size: 0.85rem;
-  color: #94a3b8;
-  position: relative;
-  z-index: 1;
-}
-
-.stats-period-danger {
-  color: #f87171;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
 }
 
 /* Activity Section */
@@ -262,7 +251,6 @@ export default AuditLogs;
   font-weight: 700;
   color: #0f172a;
   margin-bottom: 0.5rem;
-  line-height: 1.3;
 }
 
 .activity-subtitle {
@@ -270,7 +258,68 @@ export default AuditLogs;
   color: #64748b;
 }
 
-/* Focus States */
+/* Timeline */
+.timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 2rem;
+  flex: 1;
+  min-width: 200px;
+  border-left: 2px solid #e2e8f0;
+}
+
+.timeline-item:last-child {
+  border-left-color: transparent;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -6px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(135deg, #0473BA, #38D200);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px #e2e8f0;
+}
+
+.timeline-content {
+  background: #f8f9fc;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+}
+
+.timeline-action {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0473BA;
+  font-family: monospace;
+  margin-bottom: 0.25rem;
+}
+
+.timeline-user {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+/* Filter Chips */
+.filter-chip {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: #f1f5f9;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+/* Form Focus States */
 .form-select:focus,
 .form-control:focus {
   border-color: #0473BA;
@@ -278,10 +327,6 @@ export default AuditLogs;
 }
 
 /* Table */
-.audit-table {
-  margin-top: 1rem;
-}
-
 .audit-table thead th {
   background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
   color: #475569;
@@ -308,32 +353,52 @@ export default AuditLogs;
 
 .audit-table tbody tr:hover {
   background: linear-gradient(90deg, rgba(4, 115, 186, 0.03), rgba(56, 210, 0, 0.03));
-  transform: scale(1.001);
 }
 
-/* Badges */
+/* Role Badges */
+.role-badge {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-block;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #0473BA, #38D200);
+  color: white;
+}
+
+.role-badge-small {
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-block;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #0473BA, #38D200);
+  color: white;
+}
+
+/* Action Badge */
 .action-badge {
   background: linear-gradient(135deg, #e0f2fe, #dbeafe);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 700;
-  font-family: 'Courier New', monospace;
+  font-family: monospace;
   color: #0473BA;
   border: 1px solid rgba(4, 115, 186, 0.2);
   display: inline-block;
-  white-space: nowrap;
 }
 
+/* Status Badges */
 .status-badge {
   padding: 0.5rem 1.25rem;
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
   display: inline-block;
-  white-space: nowrap;
 }
 
 .status-success {
@@ -348,7 +413,45 @@ export default AuditLogs;
   box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
 }
 
-/* Responsive */
+/* Pagination */
+.btn-pagination {
+  background: white;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0473BA, #38D200);
+  color: white;
+  border-color: transparent;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(4, 115, 186, 0.2);
+}
+
+.btn-pagination:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.page-number {
+  font-weight: 700;
+  color: #0473BA;
+  font-size: 1.1rem;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
   .audit-logs-container {
     padding: 1rem;
@@ -358,12 +461,12 @@ export default AuditLogs;
     font-size: 1.75rem;
   }
 
-  .stats-value {
-    font-size: 2rem;
+  .timeline {
+    flex-direction: column;
   }
 
-  .audit-table {
-    font-size: 0.85rem;
+  .timeline-item {
+    min-width: 100%;
   }
 }
 
