@@ -484,3 +484,133 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+
+package ssss.filepathmanagement.model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "file_path_config")
+public class FilePathConfig {
+    @Id
+    private Long id;
+    private String reportName;
+    private String sourcePath;
+    private String outputPath;
+    private String status;
+    private LocalDate createdDate;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getReportName() { return reportName; }
+    public void setReportName(String reportName) { this.reportName = reportName; }
+
+    public String getSourcePath() { return sourcePath; }
+    public void setSourcePath(String sourcePath) { this.sourcePath = sourcePath; }
+
+    public String getOutputPath() { return outputPath; }
+    public void setOutputPath(String outputPath) { this.outputPath = outputPath; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public LocalDate getCreatedDate() { return createdDate; }
+    public void setCreatedDate(LocalDate createdDate) { this.createdDate = createdDate; }
+}
+
+
+
+
+
+package ssss.filepathmanagement.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import ssss.filepathmanagement.model.FilePathConfig;
+
+@Repository
+public interface FilePathConfigRepository extends JpaRepository<FilePathConfig, Long> {
+}
+
+
+
+
+
+
+package ssss.filepathmanagement.service;
+
+import org.springframework.stereotype.Service;
+import java.util.List;
+import ssss.filepathmanagement.model.FilePathConfig;
+import ssss.filepathmanagement.repository.FilePathConfigRepository;
+
+@Service
+public class FilePathManagementService {
+    private final FilePathConfigRepository repository;
+
+    public FilePathManagementService(FilePathConfigRepository repository) {
+        this.repository = repository;
+    }
+
+    public List<FilePathConfig> getAllFilePathConfigs() {
+        return repository.findAll();
+    }
+}
+
+
+
+
+
+package ssss.filepathmanagement.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
+import ssss.filepathmanagement.model.FilePathConfig;
+import ssss.filepathmanagement.service.FilePathManagementService;
+
+@RestController
+@RequestMapping("/api/file-paths")
+public class FilePathManagementController {
+    private final FilePathManagementService service;
+
+    public FilePathManagementController(FilePathManagementService service) {
+        this.service = service;
+    }
+
+    @GetMapping
+    public List<FilePathConfig> getFilePathConfigs() {
+        return service.getAllFilePathConfigs();
+    }
+}
+
+
+
+
+
+
+
+
+package ssss.filepathmanagement;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class FilePathManagementApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(FilePathManagementApplication.class, args);
+    }
+}
