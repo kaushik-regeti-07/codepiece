@@ -614,3 +614,846 @@ public class FilePathManagementApplication {
         SpringApplication.run(FilePathManagementApplication.class, args);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { useState, useEffect } from "react";
+import "./FilePathManagement.css";
+
+export const FilePathManagement = () => {
+  const [pathConfigs, setPathConfigs] = useState([
+    { 
+      id: "1", 
+      reportName: "KYC Reports", 
+      sourcePath: "/incoming/kyc", 
+      outputPath: "/reports/compliance/kyc",
+      status: "Active",
+      createdDate: "2024-01-15" 
+    },
+    { 
+      id: "2", 
+      reportName: "Dormant Reports", 
+      sourcePath: "/incoming/dormant", 
+      outputPath: "/reports/compliance/dormant",
+      status: "Active",
+      createdDate: "2024-02-20" 
+    },
+    { 
+      id: "3", 
+      reportName: "AML Reports", 
+      sourcePath: "/incoming/aml", 
+      outputPath: "/reports/compliance/aml",
+      status: "Active",
+      createdDate: "2024-03-10" 
+    }
+  ]);
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingConfig, setEditingConfig] = useState(null);
+  const [formData, setFormData] = useState({ 
+    reportName: "", 
+    sourcePath: "", 
+    outputPath: "",
+    status: "Active"
+  });
+  const [notification, setNotification] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfigId, setDeleteConfigId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const openModal = (config = null) => {
+    setEditingConfig(config);
+    setFormData(
+      config 
+        ? { 
+            reportName: config.reportName, 
+            sourcePath: config.sourcePath,
+            outputPath: config.outputPath,
+            status: config.status
+          } 
+        : { reportName: "", sourcePath: "", outputPath: "", status: "Active" }
+    );
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingConfig(null);
+    setFormData({ reportName: "", sourcePath: "", outputPath: "", status: "Active" });
+  };
+
+  const saveConfig = () => {
+    if (!formData.reportName.trim() || !formData.sourcePath.trim() || !formData.outputPath.trim()) {
+      setNotification("All fields are required");
+      setTimeout(() => setNotification(""), 2000);
+      return;
+    }
+
+    const isDuplicate = pathConfigs.some(
+      (c) => 
+        c.reportName.toLowerCase() === formData.reportName.trim().toLowerCase() && 
+        c.id !== editingConfig?.id
+    );
+    
+    if (isDuplicate) {
+      setNotification("Report name already exists");
+      setTimeout(() => setNotification(""), 2000);
+      return;
+    }
+
+    if (editingConfig) {
+      setPathConfigs(
+        pathConfigs.map(c => 
+          c.id === editingConfig.id 
+            ? { 
+                ...c, 
+                reportName: formData.reportName, 
+                sourcePath: formData.sourcePath,
+                outputPath: formData.outputPath,
+                status: formData.status
+              } 
+            : c
+        )
+      );
+      setNotification("Path configuration updated successfully");
+    } else {
+      const newConfig = {
+        id: Date.now().toString(),
+        reportName: formData.reportName,
+        sourcePath: formData.sourcePath,
+        outputPath: formData.outputPath,
+        status: formData.status,
+        createdDate: new Date().toISOString().split("T")[0]
+      };
+      setPathConfigs([...pathConfigs, newConfig]);
+      setNotification("Path configuration created successfully");
+    }
+
+    closeModal();
+    setTimeout(() => setNotification(""), 3000);
+  };
+
+  const openDeleteConfirm = (configId) => {
+    setDeleteConfigId(configId);
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+    setDeleteConfigId(null);
+  };
+
+  const deleteConfig = () => {
+    setPathConfigs(pathConfigs.filter(c => c.id !== deleteConfigId));
+    setNotification("Path configuration deleted successfully");
+    closeDeleteConfirm();
+    setTimeout(() => setNotification(""), 3000);
+  };
+
+  const toggleStatus = (configId) => {
+    setPathConfigs(
+      pathConfigs.map(c => 
+        c.id === configId 
+          ? { ...c, status: c.status === "Active" ? "Inactive" : "Active" } 
+          : c
+      )
+    );
+    setNotification("Status updated successfully");
+    setTimeout(() => setNotification(""), 2000);
+  };
+
+  const filteredConfigs = pathConfigs.filter(
+    (c) =>
+      c.reportName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.sourcePath.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.outputPath.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const totalItems = filteredConfigs.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPageSafe = Math.min(currentPage, totalPages);
+  const startIdx = (currentPageSafe - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const paginatedConfigs = filteredConfigs.slice(startIdx, endIdx);
+
+  return (
+    <div className="fpm-container">
+      {notification && (
+        <div className="fpm-notification">{notification}</div>
+      )}
+
+      <div className="fpm-header">
+        <div>
+          <h1 className="fpm-title">File Path Management</h1>
+          <p className="fpm-subtitle">Configure automatic file transfer paths for reports</p>
+        </div>
+        <button className="fpm-btn-primary" onClick={() => openModal()}>
+          + Add Path Configuration
+        </button>
+      </div>
+
+      <input
+        type="text"
+        placeholder="Search by report name or path..."
+        className="fpm-search-input"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
+
+      <table className="fpm-table">
+        <thead>
+          <tr>
+            <th>Report Name</th>
+            <th>Source Path</th>
+            <th>Output Path</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {paginatedConfigs.length === 0 ? (
+            <tr>
+              <td colSpan="6" className="fpm-no-data">
+                No path configurations found
+              </td>
+            </tr>
+          ) : (
+            paginatedConfigs.map((config) => (
+              <tr key={config.id}>
+                <td className="fpm-bold">{config.reportName}</td>
+                <td className="fpm-path">{config.sourcePath}</td>
+                <td className="fpm-path">{config.outputPath}</td>
+                <td>
+                  <span 
+                    className={`fpm-badge ${config.status.toLowerCase()}`}
+                    onClick={() => toggleStatus(config.id)}
+                  >
+                    {config.status}
+                  </span>
+                </td>
+                <td>{new Date(config.createdDate).toLocaleDateString()}</td>
+                <td>
+                  <button
+                    className="fpm-btn-edit"
+                    onClick={() => openModal(config)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="fpm-btn-delete"
+                    onClick={() => openDeleteConfirm(config.id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+
+      <div className="fpm-pagination">
+        <button
+          className="fpm-page-btn"
+          disabled={currentPageSafe === 1}
+          onClick={() => setCurrentPage(Math.max(1, currentPageSafe - 1))}
+        >
+          Previous
+        </button>
+
+        <div className="fpm-page-list">
+          {(() => {
+            const buttons = [];
+            const maxButtons = 7;
+            if (totalPages <= maxButtons) {
+              for (let p = 1; p <= totalPages; p++) {
+                buttons.push(
+                  <button
+                    key={p}
+                    className={`fpm-page-number ${p === currentPageSafe ? "active" : ""}`}
+                    onClick={() => setCurrentPage(p)}
+                  >
+                    {p}
+                  </button>
+                );
+              }
+            } else {
+              const pages = new Set([1, 2, totalPages - 1, totalPages, currentPageSafe - 1, currentPageSafe, currentPageSafe + 1]);
+              const normalized = [...pages].filter(p => p >= 1 && p <= totalPages).sort((a,b) => a - b);
+              let prev = 0;
+              for (const p of normalized) {
+                if (p - prev > 1 && prev !== 0) {
+                  buttons.push(<span key={`ellipsis-${p}`} className="fpm-page-ellipsis">…</span>);
+                }
+                buttons.push(
+                  <button
+                    key={p}
+                    className={`fpm-page-number ${p === currentPageSafe ? "active" : ""}`}
+                    onClick={() => setCurrentPage(p)}
+                  >
+                    {p}
+                  </button>
+                );
+                prev = p;
+              }
+            }
+            return buttons;
+          })()}
+        </div>
+
+        <button
+          className="fpm-page-btn"
+          disabled={currentPageSafe === totalPages}
+          onClick={() => setCurrentPage(Math.min(totalPages, currentPageSafe + 1))}
+        >
+          Next
+        </button>
+
+        <div className="fpm-page-info">
+          Page {currentPageSafe} of {totalPages} • {totalItems} items
+        </div>
+      </div>
+
+      {showModal && (
+        <div className="fpm-modal-backdrop" onClick={closeModal}>
+          <div className="fpm-modal" onClick={(e) => e.stopPropagation()}>
+            <h2 className="fpm-modal-title">
+              {editingConfig ? "Edit Path Configuration" : "Create Path Configuration"}
+            </h2>
+            <input
+              type="text"
+              placeholder="Report Name (e.g., KYC Reports)"
+              className="fpm-input"
+              value={formData.reportName}
+              onChange={(e) =>
+                setFormData({ ...formData, reportName: e.target.value })
+              }
+              autoFocus
+            />
+            <input
+              type="text"
+              placeholder="Source Path (e.g., /incoming/kyc)"
+              className="fpm-input"
+              value={formData.sourcePath}
+              onChange={(e) =>
+                setFormData({ ...formData, sourcePath: e.target.value })
+              }
+            />
+            <input
+              type="text"
+              placeholder="Output Path (e.g., /reports/compliance/kyc)"
+              className="fpm-input"
+              value={formData.outputPath}
+              onChange={(e) =>
+                setFormData({ ...formData, outputPath: e.target.value })
+              }
+            />
+            <select
+              className="fpm-select"
+              value={formData.status}
+              onChange={(e) =>
+                setFormData({ ...formData, status: e.target.value })
+              }
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <div className="fpm-modal-actions">
+              <button className="fpm-btn-cancel" onClick={closeModal}>
+                Cancel
+              </button>
+              <button className="fpm-btn-primary" onClick={saveConfig}>
+                {editingConfig ? "Update" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fpm-modal-backdrop" onClick={closeDeleteConfirm}>
+          <div className="fpm-modal" onClick={(e) => e.stopPropagation()}>
+            <h2 className="fpm-modal-title">Delete Path Configuration</h2>
+            <p className="fpm-modal-text">
+              Are you sure you want to delete this path configuration? This action cannot be undone.
+            </p>
+            <div className="fpm-modal-actions">
+              <button className="fpm-btn-cancel" onClick={closeDeleteConfirm}>
+                Cancel
+              </button>
+              <button className="fpm-btn-delete" onClick={deleteConfig}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+
+.fpm-container {
+  padding: 0;
+  max-width: 100%;
+}
+
+.fpm-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #58B24C 0%, #3D9639 100%);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(88, 178, 76, 0.3);
+  z-index: 10000;
+  animation: slideIn 0.3s ease;
+  font-weight: 600;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.fpm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #58B24C;
+}
+
+.fpm-title {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: #2B73D2;
+}
+
+.fpm-subtitle {
+  color: #6c757d;
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.fpm-btn-primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.fpm-btn-primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.fpm-search-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 20px;
+  transition: all 0.2s ease;
+}
+
+.fpm-search-input:focus {
+  outline: none;
+  border-color: #2B73D2;
+  box-shadow: 0 0 0 3px rgba(43, 115, 210, 0.1);
+}
+
+.fpm-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.fpm-table thead {
+  background: #f7fafc;
+}
+
+.fpm-table th {
+  text-align: left;
+  padding: 16px;
+  color: #0047BB;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #00CC66;
+}
+
+.fpm-table td {
+  padding: 16px;
+  font-size: 0.875rem;
+  color: #4a5568;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.fpm-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.fpm-table tbody tr:hover {
+  background: #f0f9ff;
+  transform: translateX(4px);
+}
+
+.fpm-bold {
+  color: #2B73D2;
+  font-weight: 600;
+}
+
+.fpm-path {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  color: #6c757d;
+  background: #f7fafc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.fpm-no-data {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 32px !important;
+}
+
+.fpm-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.fpm-badge.active {
+  background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+  color: #2E7D32;
+  border: 1px solid #58B24C;
+}
+
+.fpm-badge.inactive {
+  background: linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%);
+  color: #C62828;
+  border: 1px solid #EF5350;
+}
+
+.fpm-badge:hover {
+  transform: scale(1.05);
+}
+
+.fpm-btn-edit,
+.fpm-btn-delete {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 8px;
+  transition: all 0.2s ease;
+}
+
+.fpm-btn-edit {
+  background: #2563eb;
+  color: white;
+}
+
+.fpm-btn-edit:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.35);
+}
+
+.fpm-btn-delete {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.fpm-btn-delete:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.2);
+}
+
+.fpm-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fpm-modal {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.fpm-modal-title {
+  font-size: 1.5rem;
+  margin-bottom: 24px;
+  color: #2B73D2;
+  font-weight: 700;
+}
+
+.fpm-modal-text {
+  color: #4a5568;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.fpm-input,
+.fpm-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.fpm-input:focus,
+.fpm-select:focus {
+  outline: none;
+  border-color: #2B73D2;
+  box-shadow: 0 0 0 3px rgba(43, 115, 210, 0.1);
+}
+
+.fpm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.fpm-btn-cancel {
+  padding: 10px 20px;
+  background: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.fpm-btn-cancel:hover {
+  background: #cbd5e0;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .fpm-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .fpm-btn-primary {
+    width: 100%;
+  }
+
+  .fpm-container {
+    overflow-x: auto;
+  }
+
+  .fpm-table {
+    font-size: 0.75rem;
+    min-width: 720px;
+  }
+
+  .fpm-table th,
+  .fpm-table td {
+    padding: 12px 8px;
+  }
+  .fpm-modal {
+    width: 95%;
+    padding: 24px;
+  }
+  .fpm-scroll-container {
+    overflow-x: auto;
+  }
+}
+
+/* Pagination */
+.fpm-pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.fpm-page-btn {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #2563eb;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.fpm-page-btn:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+.fpm-page-btn:not(:disabled):hover {
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
+.fpm-page-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fpm-page-number {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #2563eb;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.fpm-page-number:hover {
+  background: #eff6ff;
+}
+
+.fpm-page-number.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+
+.fpm-page-ellipsis {
+  color: #94a3b8;
+  padding: 0 4px;
+}
+
+.fpm-page-info {
+  margin-left: 8px;
+  color: #6c757d;
+  font-size: 0.85rem;
+}
