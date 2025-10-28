@@ -1,249 +1,270 @@
-import { useState, useEffect } from "react";
-import "./FilePathManagement.css";
+package com.example.fpm.service;
 
-export const FilePathManagement = () => {
-  // Incoming files shown to Admin with a Send button
-  const [incomingFiles, setIncomingFiles] = useState([]); // {name, size, modified}
-  const [sendStatus, setSendStatus] = useState({}); // { [fileName]: 'idle'|'sending'|'success'|'error:msg' }
-  const [notification, setNotification] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-  const fetchIncoming = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/api/routing/incoming");
-      const data = await res.json();
-      setIncomingFiles(Array.isArray(data) ? data : []);
-    } catch (e) {
-      // ignore
+import com.example.fpm.model.PathConfig;
+import com.example.fpm.model.RoutingLog;
+import com.example.fpm.repository.PathConfigRepository;
+import com.example.fpm.repository.RoutingLogRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import com.example.fpm.sharepoint.SharePointService;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.Locale;
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.stream.Collectors;
+
+@Service
+public class RoutingService {
+    private final PathConfigRepository pathConfigRepository;
+    private final RoutingLogRepository routingLogRepository;
+    private final SharePointService sharePointService;
+    @Value("${app.routing.mode:dry-run}")
+    private String routingMode;
+    @Value("${app.storage.local.baseDir:}")
+    private String localBaseDir;
+
+    public RoutingService(PathConfigRepository pathConfigRepository, RoutingLogRepository routingLogRepository, SharePointService sharePointService) {
+        this.pathConfigRepository = pathConfigRepository;
+        this.routingLogRepository = routingLogRepository;
+        this.sharePointService = sharePointService;
     }
-  };
 
-  useEffect(() => {
-    fetchIncoming();
-    const id = setInterval(fetchIncoming, 5000);
-    return () => clearInterval(id);
-  }, []);
-
-
-  const deriveGroup = (prefix) => {
-    const lower = (prefix || "").toLowerCase();
-    if (lower === "finance") return "Finance";
-    if (lower === "risk") return "Risk"; // Risk Management → Risk
-    if (lower === "trading") return "Trading";
-    if (lower === "hr") return "HR"; // HR Analytics → HR
-    if (lower === "operations") return "Operations";
-    if (lower === "compliance") return "Compliance";
-    // fallback capitalize
-    return prefix ? prefix[0].toUpperCase() + prefix.slice(1) : "Unmapped";
-  };
-
-  const toViewModel = (items) => {
-    return items.map((f) => {
-      const raw = f.name || "";
-      const idx = raw.indexOf("_");
-      const prefix = idx > 0 ? raw.substring(0, idx) : "";
-      const display = idx > 0 ? raw.substring(idx + 1) : raw;
-      const group = deriveGroup(prefix);
-      const outputPath = `reports/${group}`;
-      return { ...f, displayName: display, sourcePath: "incoming/", outputPath, prefix };
-    });
-  };
-
-  const filteredConfigs = toViewModel(incomingFiles).filter((f) =>
-    (f.displayName || f.name || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const totalItems = filteredConfigs.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const currentPageSafe = Math.min(currentPage, totalPages);
-  const startIdx = (currentPageSafe - 1) * pageSize;
-  const endIdx = startIdx + pageSize;
-  const paginatedConfigs = filteredConfigs.slice(startIdx, endIdx);
-
-  const formatSize = (bytes) => {
-    if (!bytes && bytes !== 0) return "";
-    const units = ["B", "KB", "MB", "GB"]; let i = 0; let v = bytes;
-    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-    return `${v.toFixed(1)} ${units[i]}`;
-  };
-
-  const formatTime = (ms) => {
-    if (!ms) return "";
-    try { return new Date(ms).toLocaleString(); } catch { return ""; }
-  };
-
-  const sendOne = async (name) => {
-    setSendStatus((s) => ({ ...s, [name]: "sending" }));
-    try {
-      const res = await fetch(`http://localhost:8080/api/routing/route-one?fileName=${encodeURIComponent(name)}`, { method: "POST" });
-      if (!res.ok) {
-        const txt = await res.text();
-        setSendStatus((s) => ({ ...s, [name]: `error:${res.status}` }));
-        setNotification(`Send failed (${res.status}). ${txt || ""}`.trim());
-        setTimeout(() => setNotification(""), 3000);
-        return;
-      }
-      const data = await res.json();
-      if (data && data.moved) {
-        setSendStatus((s) => ({ ...s, [name]: "success" }));
-        setNotification(`Sent ${name}`);
-        setTimeout(() => setNotification(""), 1500);
-        // refresh list to remove if moved
-        fetchIncoming();
-      } else {
-        const reason = data && data.reason ? data.reason : "failed";
-        setSendStatus((s) => ({ ...s, [name]: `error:${reason}` }));
-        setNotification(`Send failed: ${reason}`);
-        setTimeout(() => setNotification(""), 3000);
-      }
-    } catch (e) {
-      setSendStatus((s) => ({ ...s, [name]: `error:${e.message}` }));
-      setNotification(`Send error: ${e.message}`);
-      setTimeout(() => setNotification(""), 3000);
+    // Stub: later integrate with Microsoft Graph to process incoming/ folder
+    public Map<String, Object> runRoutingNow() {
+        if ("local".equalsIgnoreCase(routingMode)) {
+            return runLocalRouting();
+        } else if ("live".equalsIgnoreCase(routingMode)) {
+            List<PathConfig> configs = pathConfigRepository.findAll();
+            return sharePointService.runLiveRouting(configs, this::persistLog);
+        }
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("processed", 0);
+        summary.put("moved", 0);
+        summary.put("skipped", 0);
+        summary.put("errors", 0);
+        return summary;
     }
-  };
 
-  return (
-    <div className="fpm-container">
-      {notification && (
-        <div className="fpm-notification">{notification}</div>
-      )}
+    private Map<String, Object> routeSingleLocal(String fileName) {
+        Map<String, Object> res = new HashMap<>();
+        if (localBaseDir == null || localBaseDir.trim().isEmpty()) {
+            res.put("moved", false);
+            res.put("reason", "baseDir not configured");
+            return res;
+        }
+        Path base = Paths.get(localBaseDir);
+        Path incoming = base.resolve("incoming");
+        Path source = incoming.resolve(fileName);
+        if (!Files.exists(source)) {
+            res.put("moved", false);
+            res.put("reason", "file not found in incoming");
+            return res;
+        }
+        int sep = fileName.indexOf('_');
+        if (sep <= 0) {
+            persistLog(fileName, "SKIPPED", incoming.toString(), "", "Missing prefix delimiter '_'");
+            res.put("moved", false);
+            res.put("reason", "missing prefix delimiter '_'");
+            return res;
+        }
+        String prefix = fileName.substring(0, sep);
+        String outRel = detectOutputBase(prefix); // group-based mapping e.g., reports/Finance
+        Path outDir = base.resolve(outRel.replace("/", java.io.File.separator));
+        try {
+            if (!Files.exists(outDir)) Files.createDirectories(outDir);
+            Path target = outDir.resolve(fileName);
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+            persistLog(fileName, "MOVED", incoming.toString(), target.toString(), null);
+            res.put("moved", true);
+            res.put("destination", target.toString());
+            return res;
+        } catch (IOException e) {
+            persistLog(fileName, "ERROR", incoming.toString(), outDir.toString(), e.getMessage());
+            res.put("moved", false);
+            res.put("reason", e.getMessage());
+            return res;
+        }
+    }
 
-      <div className="fpm-header">
-        <div>
-          <h1 className="fpm-title">File Path Management</h1>
-          <p className="fpm-subtitle">Send incoming files to their mapped report folders</p>
-        </div>
-        {/* Configuration modal removed for this demo flow */}
-      </div>
+    public static class DryRunDecision {
+        private String fileName;
+        private String prefix;
+        private boolean matched;
+        private String outputPath; // reports/<Group>
+        private String destinationPath; // outputPath + "/" + fileName
+        private String reason; // if not matched
 
-      <input
-        type="text"
-        placeholder="Search by report name (filename after prefix)..."
-        className="fpm-search-input"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
+        public DryRunDecision() {}
 
-      <table className="fpm-table">
-        <thead>
-          <tr>
-            <th>Report Name</th>
-            <th>Source Path</th>
-            <th>Output Path</th>
-            <th>Actions</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paginatedConfigs.length === 0 ? (
-            <tr>
-              <td colSpan="5" className="fpm-no-data">
-                No incoming files found
-              </td>
-            </tr>
-          ) : (
-            paginatedConfigs.map((f) => {
-              const st = sendStatus[f.name] || "idle";
-              const isSending = st === "sending";
-              const isSuccess = st === "success";
-              const isError = st.startsWith && st.startsWith("error:");
-              return (
-                <tr key={f.name}>
-                  <td className="fpm-bold">{f.displayName || f.name}</td>
-                  <td className="fpm-path">{f.sourcePath}</td>
-                  <td className="fpm-path">{f.outputPath}</td>
-                  <td>
-                    <button
-                      className={`fpm-btn-primary ${isSuccess ? 'fpm-btn-success' : ''}`}
-                      disabled={isSending || isSuccess}
-                      onClick={() => sendOne(f.name)}
-                    >
-                      {isSuccess ? 'Sent' : 'Send'}
-                    </button>
-                  </td>
-                  <td>
-                    {isSuccess ? (
-                      <span className="fpm-badge active">ACTIVE</span>
-                    ) : (
-                      <span className="fpm-badge inactive">INACTIVE</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
+        public DryRunDecision(String fileName, String prefix, boolean matched, String outputPath, String destinationPath, String reason) {
+            this.fileName = fileName;
+            this.prefix = prefix;
+            this.matched = matched;
+            this.outputPath = outputPath;
+            this.destinationPath = destinationPath;
+            this.reason = reason;
+        }
 
-      <div className="fpm-pagination">
-        <button
-          className="fpm-page-btn"
-          disabled={currentPageSafe === 1}
-          onClick={() => setCurrentPage(Math.max(1, currentPageSafe - 1))}
-        >
-          Previous
-        </button>
+        public String getFileName() { return fileName; }
+        public void setFileName(String fileName) { this.fileName = fileName; }
+        public String getPrefix() { return prefix; }
+        public void setPrefix(String prefix) { this.prefix = prefix; }
+        public boolean isMatched() { return matched; }
+        public void setMatched(boolean matched) { this.matched = matched; }
+        public String getOutputPath() { return outputPath; }
+        public void setOutputPath(String outputPath) { this.outputPath = outputPath; }
+        public String getDestinationPath() { return destinationPath; }
+        public void setDestinationPath(String destinationPath) { this.destinationPath = destinationPath; }
+        public String getReason() { return reason; }
+        public void setReason(String reason) { this.reason = reason; }
+    }
 
-        <div className="fpm-page-list">
-          {(() => {
-            const buttons = [];
-            const maxButtons = 7;
-            if (totalPages <= maxButtons) {
-              for (let p = 1; p <= totalPages; p++) {
-                buttons.push(
-                  <button
-                    key={p}
-                    className={`fpm-page-number ${p === currentPageSafe ? "active" : ""}`}
-                    onClick={() => setCurrentPage(p)}
-                  >
-                    {p}
-                  </button>
-                );
-              }
-            } else {
-              const pages = new Set([1, 2, totalPages - 1, totalPages, currentPageSafe - 1, currentPageSafe, currentPageSafe + 1]);
-              const normalized = [...pages].filter(p => p >= 1 && p <= totalPages).sort((a,b) => a - b);
-              let prev = 0;
-              for (const p of normalized) {
-                if (p - prev > 1 && prev !== 0) {
-                  buttons.push(<span key={`ellipsis-${p}`} className="fpm-page-ellipsis">…</span>);
-                }
-                buttons.push(
-                  <button
-                    key={p}
-                    className={`fpm-page-number ${p === currentPageSafe ? "active" : ""}`}
-                    onClick={() => setCurrentPage(p)}
-                  >
-                    {p}
-                  </button>
-                );
-                prev = p;
-              }
+    public List<DryRunDecision> dryRunDecisions(List<String> fileNames) {
+        List<PathConfig> configs = pathConfigRepository.findAll();
+        List<DryRunDecision> decisions = new ArrayList<>();
+        for (String name : fileNames) {
+            if (name == null || name.trim().isEmpty()) continue;
+            String trimmed = name.trim();
+            int sep = trimmed.indexOf('_');
+            if (sep <= 0) {
+                decisions.add(new DryRunDecision(trimmed, null, false, null, null, "Filename missing prefix delimiter '_'"));
+                continue;
             }
-            return buttons;
-          })()}
-        </div>
+            String prefix = trimmed.substring(0, sep);
+            String outputBase = detectOutputBase(prefix);
+            String destination = (outputBase.endsWith("/")) ? outputBase + trimmed : outputBase + "/" + trimmed;
+            decisions.add(new DryRunDecision(trimmed, prefix, true, outputBase, destination, null));
+        }
+        return decisions;
+    }
 
-        <button
-          className="fpm-page-btn"
-          disabled={currentPageSafe === totalPages}
-          onClick={() => setCurrentPage(Math.min(totalPages, currentPageSafe + 1))}
-        >
-          Next
-        </button>
+    public List<Map<String, Object>> listIncomingFiles() {
+        if (!"local".equalsIgnoreCase(routingMode)) {
+            return List.of();
+        }
+        if (localBaseDir == null || localBaseDir.trim().isEmpty()) {
+            return List.of();
+        }
+        Path incoming = Paths.get(localBaseDir).resolve("incoming");
+        if (!Files.exists(incoming)) return List.of();
+        try {
+            return Files.list(incoming)
+                    .filter(Files::isRegularFile)
+                    .map(p -> {
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("name", p.getFileName().toString());
+                        try {
+                            m.put("size", Files.size(p));
+                            m.put("modified", Files.getLastModifiedTime(p).toMillis());
+                        } catch (IOException ignored) {}
+                        return m;
+                    })
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            return List.of();
+        }
+    }
 
-        <div className="fpm-page-info">
-          Page {currentPageSafe} of {totalPages} • {totalItems} items
-        </div>
-      </div>
+    public Map<String, Object> routeSingle(String fileName) {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            throw new IllegalArgumentException("fileName is required");
+        }
+        if ("local".equalsIgnoreCase(routingMode)) {
+            return routeSingleLocal(fileName.trim());
+        } else if ("live".equalsIgnoreCase(routingMode)) {
+            // Optional: implement live single move later
+            throw new UnsupportedOperationException("Single-file routing not implemented for live mode");
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("moved", false);
+        res.put("reason", "routing disabled");
+        return res;
+    }
 
-      {/* Modals for CRUD removed in this demo */}
-    </div>
-  );
-};
+    private Map<String, Object> runLocalRouting() {
+        Map<String, Object> summary = new HashMap<>();
+        int processed = 0;
+        int moved = 0;
+        int skipped = 0;
+        int errors = 0;
+        if (localBaseDir == null || localBaseDir.trim().isEmpty()) {
+            summary.put("processed", processed);
+            summary.put("moved", moved);
+            summary.put("skipped", skipped);
+            summary.put("errors", errors);
+            return summary;
+        }
+        Path base = Paths.get(localBaseDir);
+        Path incoming = base.resolve("incoming");
+        try {
+            if (!Files.exists(incoming)) {
+                Files.createDirectories(incoming);
+            }
+            List<Path> files = Files.list(incoming)
+                    .filter(p -> Files.isRegularFile(p))
+                    .collect(Collectors.toList());
+            for (Path file : files) {
+                processed++;
+                String fileName = file.getFileName().toString();
+                int sep = fileName.indexOf('_');
+                if (sep <= 0) {
+                    skipped++;
+                    persistLog(fileName, "SKIPPED", incoming.toString(), "", "Missing prefix delimiter '_'");
+                    continue;
+                }
+                String prefix = fileName.substring(0, sep);
+                String outRel = detectOutputBase(prefix);
+                Path outDir = base.resolve(outRel.replace("/", java.io.File.separator));
+                if (!Files.exists(outDir)) {
+                    Files.createDirectories(outDir);
+                }
+                Path target = outDir.resolve(fileName);
+                try {
+                    Files.move(file, target, StandardCopyOption.REPLACE_EXISTING);
+                    moved++;
+                    persistLog(fileName, "MOVED", incoming.toString(), target.toString(), null);
+                } catch (IOException ex) {
+                    errors++;
+                    persistLog(fileName, "ERROR", incoming.toString(), outDir.toString(), ex.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            // ignore here; counts remain
+        }
+        summary.put("processed", processed);
+        summary.put("moved", moved);
+        summary.put("skipped", skipped);
+        summary.put("errors", errors);
+        return summary;
+    }
+
+    private String detectOutputBase(String rawPrefix) {
+        if (rawPrefix == null || rawPrefix.isEmpty()) return "reports/Unmapped";
+        String p = rawPrefix.trim();
+        String lower = p.toLowerCase(Locale.ROOT);
+        // Known groups mapping
+        if (lower.equals("finance")) return "reports/Finance";
+        if (lower.equals("risk")) return "reports/Risk"; // Risk Management → Risk
+        if (lower.equals("trading")) return "reports/Trading";
+        if (lower.equals("hr")) return "reports/HR"; // HR Analytics → HR
+        if (lower.equals("operations")) return "reports/Operations";
+        if (lower.equals("compliance")) return "reports/Compliance";
+        // fallback: capitalize first letter
+        String cap = p.substring(0,1).toUpperCase(Locale.ROOT) + p.substring(1);
+        return "reports/" + cap;
+    }
+
+    private void persistLog(String fileName, String action, String from, String to, String message) {
+        RoutingLog log = new RoutingLog();
+        log.setFileName(fileName);
+        log.setAction(action);
+        log.setFromPath(from);
+        log.setToPath(to);
+        log.setMessage(message);
+        routingLogRepository.save(log);
+    }
+}
