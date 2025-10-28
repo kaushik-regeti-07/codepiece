@@ -1,814 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { Download, Clock, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import './AuditLogs.css';
-
-const AuditLogs = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterAction, setFilterAction] = useState('All Actions');
-  const [filterRole, setFilterRole] = useState('All Users');
-  const [dateRange, setDateRange] = useState('7days');
-  const [currentPage, setCurrentPage] = useState(1);
-  const recordsPerPage = 10;
-
-  // Replace with your API call
-  const auditData = [
-    { id: 1, timestamp: '2024-01-10 14:32:15', user: 'admin@rwtool.com', role: 'Admin', action: 'USER_APPROVED', details: 'Approved subscription request for john.doe@example.com', status: 'success' },
-    { id: 2, timestamp: '2024-01-10 14:28:43', user: 'admin@rwtool.com', role: 'Admin', action: 'REPORT_UPLOAD', details: 'Uploaded Q4 Financial Report', status: 'success' },
-    { id: 3, timestamp: '2024-01-10 14:15:22', user: 'jane.smith@rwtool.com', role: 'Subscriber', action: 'REPORT_VIEW', details: 'Viewed Financial Report Q3 2024', status: 'success' },
-    { id: 4, timestamp: '2024-01-10 13:45:11', user: 'unknown', role: 'Subscriber', action: 'LOGIN_FAILED', details: 'Failed login attempt', status: 'failed' },
-    { id: 5, timestamp: '2024-01-10 13:30:22', user: 'admin@rwtool.com', role: 'Admin', action: 'USER_REJECTED', details: 'Rejected subscription request for inactive user', status: 'success' },
-    { id: 6, timestamp: '2024-01-10 12:55:33', user: 'subscriber@rwtool.com', role: 'Subscriber', action: 'REPORT_DOWNLOAD', details: 'Downloaded Operations Report July 2024', status: 'success' },
-    { id: 7, timestamp: '2024-01-10 12:20:15', user: 'john.doe@rwtool.com', role: 'Subscriber', action: 'USER_LOGIN', details: 'User logged in successfully', status: 'success' },
-    { id: 8, timestamp: '2024-01-10 11:45:00', user: 'admin@rwtool.com', role: 'Admin', action: 'DOMAIN_ADDED', details: 'Added new domain: marketing.reports.com', status: 'success' },
-    { id: 9, timestamp: '2024-01-10 11:30:15', user: 'subscriber2@rwtool.com', role: 'Subscriber', action: 'REPORT_VIEW', details: 'Viewed Marketing Report Q2 2024', status: 'success' },
-    { id: 10, timestamp: '2024-01-10 11:15:45', user: 'admin@rwtool.com', role: 'Admin', action: 'USER_APPROVED', details: 'Approved subscription request for alice@example.com', status: 'success' },
-    { id: 11, timestamp: '2024-01-10 10:55:30', user: 'subscriber3@rwtool.com', role: 'Subscriber', action: 'REPORT_DOWNLOAD', details: 'Downloaded HR Report June 2024', status: 'success' },
-    { id: 12, timestamp: '2024-01-10 10:40:20', user: 'admin@rwtool.com', role: 'Admin', action: 'REPORT_UPLOAD', details: 'Uploaded Annual Financial Statement', status: 'success' }
-  ];
-
-  const filteredData = auditData.filter(log => {
-    const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) || log.details.toLowerCase().includes(searchTerm.toLowerCase()) || log.action.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesAction = filterAction === 'All Actions' || log.action === filterAction;
-    const matchesRole = filterRole === 'All Users' || log.role === filterRole;
-    return matchesSearch && matchesAction && matchesRole;
-  });
-
-  const indexOfLastRecord = currentPage * recordsPerPage;
-  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
-  const currentRecords = filteredData.slice(indexOfFirstRecord, indexOfLastRecord);
-  const totalPages = Math.ceil(filteredData.length / recordsPerPage);
-
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterAction, filterRole, dateRange]);
-
-  return (
-    <div className="audit-logs-container">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
-        <div>
-          <h2 className="audit-title">Audit Logs</h2>
-          <p className="audit-subtitle">Monitor all admin and subscriber activities in real-time</p>
-        </div>
-        <button className="btn btn-export">
-          <Download size={18} className="me-2" />
-          Export Logs
-        </button>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="info-card mb-4">
-        <h5 className="card-header-title">
-          <Clock size={20} className="me-2" />
-          Recent Activity
-        </h5>
-        <div className="timeline">
-          {auditData.slice(0, 5).map(activity => (
-            <div key={activity.id} className="timeline-item">
-              <div className="timeline-dot"></div>
-              <div className="timeline-content">
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="role-badge-small">{activity.role}</span>
-                  <small className="text-muted">{activity.timestamp.split(' ')[1]}</small>
-                </div>
-                <div className="timeline-action">{activity.action}</div>
-                <div className="timeline-user">{activity.user}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Activity Log */}
-      <div className="activity-section">
-        <div className="mb-4">
-          <h4 className="activity-title">Activity Log</h4>
-          <p className="activity-subtitle mb-3">Complete audit trail of system activities</p>
-          {(filterAction !== 'All Actions' || filterRole !== 'All Users') && (
-            <div className="mb-3">
-              <small className="text-muted me-2">Active Filters:</small>
-              {filterAction !== 'All Actions' && <span className="filter-chip">{filterAction}</span>}
-              {filterRole !== 'All Users' && <span className="filter-chip">{filterRole}</span>}
-            </div>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="row g-3 mb-4">
-          <div className="col-md-2">
-            <select className="form-select" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
-              {['All Users', 'Admin', 'Subscriber'].map(opt => <option key={opt}>{opt}</option>)}
-            </select>
-          </div>
-          <div className="col-md-3">
-            <select className="form-select" value={filterAction} onChange={e => setFilterAction(e.target.value)}>
-              {['All Actions', 'USER_APPROVED', 'USER_REJECTED', 'REPORT_UPLOAD', 'REPORT_VIEW', 'REPORT_DOWNLOAD', 'USER_LOGIN', 'LOGIN_FAILED', 'DOMAIN_ADDED'].map(opt => <option key={opt}>{opt}</option>)}
-            </select>
-          </div>
-          <div className="col-md-2">
-            <select className="form-select" value={dateRange} onChange={e => setDateRange(e.target.value)}>
-              {[{v:'today',l:'Today'},{v:'7days',l:'Last 7 Days'},{v:'30days',l:'Last 30 Days'},{v:'90days',l:'Last 90 Days'}].map(opt => <option key={opt.v} value={opt.v}>{opt.l}</option>)}
-            </select>
-          </div>
-          <div className="col-md-4">
-            <div className="input-group">
-              <span className="input-group-text bg-white border-end-0">
-                <Search size={18} className="text-muted" />
-              </span>
-              <input type="text" className="form-control border-start-0" placeholder="Search by user, action, or details..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-            </div>
-          </div>
-          <div className="col-md-1">
-            <button className="btn btn-outline-secondary w-100" title="Advanced Filters">
-              <Filter size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* Table Info */}
-        <div className="mb-3 d-flex justify-content-between">
-          <small className="text-muted">Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredData.length)} of {filteredData.length} records</small>
-          <small className="text-muted">Page {currentPage} of {totalPages || 1}</small>
-        </div>
-
-        {/* Table */}
-        <div className="table-responsive">
-          <table className="table audit-table">
-            <thead>
-              <tr>{['Timestamp', 'User', 'Role', 'Action', 'Details', 'Status'].map(h => <th key={h}>{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {currentRecords.map(log => (
-                <tr key={log.id}>
-                  <td className="text-muted">{log.timestamp}</td>
-                  <td className="fw-semibold">{log.user}</td>
-                  <td><span className="role-badge">{log.role}</span></td>
-                  <td><span className="action-badge">{log.action}</span></td>
-                  <td>{log.details}</td>
-                  <td><span className={`status-badge status-${log.status}`}>{log.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="d-flex justify-content-between align-items-center mt-4">
-          <button className="btn btn-pagination" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>
-            <ChevronLeft size={18} className="me-1" />
-            Previous
-          </button>
-          <div className="pagination-info">
-            <span className="page-number">{currentPage}</span>
-            <span className="text-muted mx-2">of</span>
-            <span className="page-number">{totalPages || 1}</span>
-          </div>
-          <button className="btn btn-pagination" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0}>
-            Next
-            <ChevronRight size={18} className="ms-1" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default AuditLogs;
-
-
-
-@import 'bootstrap/dist/css/bootstrap.min.css';
-
-/* Container */
-.audit-logs-container {
-  padding: 2rem;
-  background-color: #f8f9fc;
-}
-
-/* Header Section */
-.audit-title {
-  font-size: 2.25rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #0473BA, #38D200);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.25rem;
-  line-height: 1.3;
-}
-
-.audit-subtitle {
-  color: #64748b;
-  font-size: 1rem;
-}
-
-/* Export Button */
-.btn-export {
-  background: linear-gradient(135deg, #0473BA, #0590d9);
-  border: none;
-  color: white;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(4, 115, 186, 0.2);
-  transition: all 0.3s ease;
-  padding: 0.625rem 1.5rem;
-  display: flex;
-  align-items: center;
-}
-
-.btn-export:hover {
-  background: linear-gradient(135deg, #0590d9, #0473BA);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(4, 115, 186, 0.3);
-  color: white;
-}
-
-/* Info Card */
-.info-card {
-  background: white;
-  padding: 1.75rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.card-header-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-}
-
-/* Activity Section */
-.activity-section {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.activity-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 0.5rem;
-}
-
-.activity-subtitle {
-  font-size: 0.95rem;
-  color: #64748b;
-}
-
-/* Timeline */
-.timeline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.timeline-item {
-  position: relative;
-  padding-left: 2rem;
-  flex: 1;
-  min-width: 200px;
-  border-left: 2px solid #e2e8f0;
-}
-
-.timeline-item:last-child {
-  border-left-color: transparent;
-}
-
-.timeline-dot {
-  position: absolute;
-  left: -6px;
-  top: 4px;
-  width: 10px;
-  height: 10px;
-  background: linear-gradient(135deg, #0473BA, #38D200);
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 5px #e2e8f0;
-}
-
-.timeline-content {
-  background: #f8f9fc;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-}
-
-.timeline-action {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #0473BA;
-  font-family: monospace;
-  margin-bottom: 0.25rem;
-}
-
-.timeline-user {
-  font-size: 0.85rem;
-  color: #64748b;
-}
-
-/* Filter Chips */
-.filter-chip {
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  background: #f1f5f9;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  margin-right: 0.5rem;
-  color: #475569;
-  font-weight: 600;
-}
-
-/* Form Focus States */
-.form-select:focus,
-.form-control:focus {
-  border-color: #0473BA;
-  box-shadow: 0 0 0 0.2rem rgba(4, 115, 186, 0.15);
-}
-
-/* Table */
-.audit-table thead th {
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-  color: #475569;
-  font-weight: 700;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  border-bottom: 2px solid #0473BA;
-  padding: 1.25rem 1rem;
-  white-space: nowrap;
-}
-
-.audit-table tbody td {
-  padding: 1.25rem 1rem;
-  vertical-align: middle;
-  font-size: 0.95rem;
-  color: #334155;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.audit-table tbody tr {
-  transition: all 0.2s ease;
-}
-
-.audit-table tbody tr:hover {
-  background: linear-gradient(90deg, rgba(4, 115, 186, 0.03), rgba(56, 210, 0, 0.03));
-}
-
-/* Role Badges */
-.role-badge {
-  padding: 0.35rem 0.85rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  display: inline-block;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, #0473BA, #38D200);
-  color: white;
-}
-
-.role-badge-small {
-  padding: 0.25rem 0.65rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  display: inline-block;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, #0473BA, #38D200);
-  color: white;
-}
-
-/* Action Badge */
-.action-badge {
-  background: linear-gradient(135deg, #e0f2fe, #dbeafe);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  font-family: monospace;
-  color: #0473BA;
-  border: 1px solid rgba(4, 115, 186, 0.2);
-  display: inline-block;
-}
-
-/* Status Badges */
-.status-badge {
-  padding: 0.5rem 1.25rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  display: inline-block;
-}
-
-.status-success {
-  background: linear-gradient(135deg, #38D200, #32bd00);
-  color: white;
-  box-shadow: 0 2px 6px rgba(56, 210, 0, 0.3);
-}
-
-.status-failed {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
-}
-
-/* Pagination */
-.btn-pagination {
-  background: white;
-  border: 1px solid #e2e8f0;
-  color: #475569;
-  font-weight: 600;
-  padding: 0.625rem 1.25rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-}
-
-.btn-pagination:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0473BA, #38D200);
-  color: white;
-  border-color: transparent;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(4, 115, 186, 0.2);
-}
-
-.btn-pagination:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.pagination-info {
-  display: flex;
-  align-items: center;
-  font-size: 0.95rem;
-}
-
-.page-number {
-  font-weight: 700;
-  color: #0473BA;
-  font-size: 1.1rem;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .audit-logs-container {
-    padding: 1rem;
-  }
-
-  .audit-title {
-    font-size: 1.75rem;
-  }
-
-  .timeline {
-    flex-direction: column;
-  }
-
-  .timeline-item {
-    min-width: 100%;
-  }
-}
-
-
-
-import React from 'react';
-import { AuditLogViewer } from './AuditLogViewer';
-
-function App() {
-  return (
-    <div>
-      <AuditLogViewer />
-    </div>
-  );
-}
-
-export default App;
-
-
-
-
-
-
-
-package ssss.filepathmanagement.model;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import java.time.LocalDate;
-
-@Entity
-@Table(name = "file_path_config")
-public class FilePathConfig {
-    @Id
-    private Long id;
-    private String reportName;
-    private String sourcePath;
-    private String outputPath;
-    private String status;
-    private LocalDate createdDate;
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getReportName() { return reportName; }
-    public void setReportName(String reportName) { this.reportName = reportName; }
-
-    public String getSourcePath() { return sourcePath; }
-    public void setSourcePath(String sourcePath) { this.sourcePath = sourcePath; }
-
-    public String getOutputPath() { return outputPath; }
-    public void setOutputPath(String outputPath) { this.outputPath = outputPath; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public LocalDate getCreatedDate() { return createdDate; }
-    public void setCreatedDate(LocalDate createdDate) { this.createdDate = createdDate; }
-}
-
-
-
-
-
-package ssss.filepathmanagement.repository;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-import ssss.filepathmanagement.model.FilePathConfig;
-
-@Repository
-public interface FilePathConfigRepository extends JpaRepository<FilePathConfig, Long> {
-}
-
-
-
-
-
-
-package ssss.filepathmanagement.service;
-
-import org.springframework.stereotype.Service;
-import java.util.List;
-import ssss.filepathmanagement.model.FilePathConfig;
-import ssss.filepathmanagement.repository.FilePathConfigRepository;
-
-@Service
-public class FilePathManagementService {
-    private final FilePathConfigRepository repository;
-
-    public FilePathManagementService(FilePathConfigRepository repository) {
-        this.repository = repository;
-    }
-
-    public List<FilePathConfig> getAllFilePathConfigs() {
-        return repository.findAll();
-    }
-}
-
-
-
-
-
-package ssss.filepathmanagement.controller;
-
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.util.List;
-import ssss.filepathmanagement.model.FilePathConfig;
-import ssss.filepathmanagement.service.FilePathManagementService;
-
-@RestController
-@RequestMapping("/api/file-paths")
-public class FilePathManagementController {
-    private final FilePathManagementService service;
-
-    public FilePathManagementController(FilePathManagementService service) {
-        this.service = service;
-    }
-
-    @GetMapping
-    public List<FilePathConfig> getFilePathConfigs() {
-        return service.getAllFilePathConfigs();
-    }
-}
-
-
-
-
-
-
-
-
-package ssss.filepathmanagement;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-public class FilePathManagementApplication {
-
-    public static void main(String[] args) {
-        SpringApplication.run(FilePathManagementApplication.class, args);
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { useState, useEffect } from "react";
 import "./FilePathManagement.css";
 
 export const FilePathManagement = () => {
-  const [pathConfigs, setPathConfigs] = useState([
-    { 
-      id: "1", 
-      reportName: "KYC Reports", 
-      sourcePath: "/incoming/kyc", 
-      outputPath: "/reports/compliance/kyc",
-      status: "Active",
-      createdDate: "2024-01-15" 
-    },
-    { 
-      id: "2", 
-      reportName: "Dormant Reports", 
-      sourcePath: "/incoming/dormant", 
-      outputPath: "/reports/compliance/dormant",
-      status: "Active",
-      createdDate: "2024-02-20" 
-    },
-    { 
-      id: "3", 
-      reportName: "AML Reports", 
-      sourcePath: "/incoming/aml", 
-      outputPath: "/reports/compliance/aml",
-      status: "Active",
-      createdDate: "2024-03-10" 
-    }
-  ]);
-
-  const [showModal, setShowModal] = useState(false);
-  const [editingConfig, setEditingConfig] = useState(null);
-  const [formData, setFormData] = useState({ 
-    reportName: "", 
-    sourcePath: "", 
-    outputPath: "",
-    status: "Active"
-  });
+  // Incoming files shown to Admin with a Send button
+  const [incomingFiles, setIncomingFiles] = useState([]); // {name, size, modified}
+  const [sendStatus, setSendStatus] = useState({}); // { [fileName]: 'idle'|'sending'|'success'|'error:msg' }
   const [notification, setNotification] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfigId, setDeleteConfigId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-
-  const openModal = (config = null) => {
-    setEditingConfig(config);
-    setFormData(
-      config 
-        ? { 
-            reportName: config.reportName, 
-            sourcePath: config.sourcePath,
-            outputPath: config.outputPath,
-            status: config.status
-          } 
-        : { reportName: "", sourcePath: "", outputPath: "", status: "Active" }
-    );
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingConfig(null);
-    setFormData({ reportName: "", sourcePath: "", outputPath: "", status: "Active" });
-  };
-
-  const saveConfig = () => {
-    if (!formData.reportName.trim() || !formData.sourcePath.trim() || !formData.outputPath.trim()) {
-      setNotification("All fields are required");
-      setTimeout(() => setNotification(""), 2000);
-      return;
+  const fetchIncoming = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/routing/incoming");
+      const data = await res.json();
+      setIncomingFiles(Array.isArray(data) ? data : []);
+    } catch (e) {
+      // ignore
     }
-
-    const isDuplicate = pathConfigs.some(
-      (c) => 
-        c.reportName.toLowerCase() === formData.reportName.trim().toLowerCase() && 
-        c.id !== editingConfig?.id
-    );
-    
-    if (isDuplicate) {
-      setNotification("Report name already exists");
-      setTimeout(() => setNotification(""), 2000);
-      return;
-    }
-
-    if (editingConfig) {
-      setPathConfigs(
-        pathConfigs.map(c => 
-          c.id === editingConfig.id 
-            ? { 
-                ...c, 
-                reportName: formData.reportName, 
-                sourcePath: formData.sourcePath,
-                outputPath: formData.outputPath,
-                status: formData.status
-              } 
-            : c
-        )
-      );
-      setNotification("Path configuration updated successfully");
-    } else {
-      const newConfig = {
-        id: Date.now().toString(),
-        reportName: formData.reportName,
-        sourcePath: formData.sourcePath,
-        outputPath: formData.outputPath,
-        status: formData.status,
-        createdDate: new Date().toISOString().split("T")[0]
-      };
-      setPathConfigs([...pathConfigs, newConfig]);
-      setNotification("Path configuration created successfully");
-    }
-
-    closeModal();
-    setTimeout(() => setNotification(""), 3000);
   };
 
-  const openDeleteConfirm = (configId) => {
-    setDeleteConfigId(configId);
-    setShowDeleteConfirm(true);
+  useEffect(() => {
+    fetchIncoming();
+    const id = setInterval(fetchIncoming, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+
+  const deriveGroup = (prefix) => {
+    const lower = (prefix || "").toLowerCase();
+    if (lower === "finance") return "Finance";
+    if (lower === "risk") return "Risk"; // Risk Management → Risk
+    if (lower === "trading") return "Trading";
+    if (lower === "hr") return "HR"; // HR Analytics → HR
+    if (lower === "operations") return "Operations";
+    if (lower === "compliance") return "Compliance";
+    // fallback capitalize
+    return prefix ? prefix[0].toUpperCase() + prefix.slice(1) : "Unmapped";
   };
 
-  const closeDeleteConfirm = () => {
-    setShowDeleteConfirm(false);
-    setDeleteConfigId(null);
+  const toViewModel = (items) => {
+    return items.map((f) => {
+      const raw = f.name || "";
+      const idx = raw.indexOf("_");
+      const prefix = idx > 0 ? raw.substring(0, idx) : "";
+      const display = idx > 0 ? raw.substring(idx + 1) : raw;
+      const group = deriveGroup(prefix);
+      const outputPath = `reports/${group}`;
+      return { ...f, displayName: display, sourcePath: "incoming/", outputPath, prefix };
+    });
   };
 
-  const deleteConfig = () => {
-    setPathConfigs(pathConfigs.filter(c => c.id !== deleteConfigId));
-    setNotification("Path configuration deleted successfully");
-    closeDeleteConfirm();
-    setTimeout(() => setNotification(""), 3000);
-  };
-
-  const toggleStatus = (configId) => {
-    setPathConfigs(
-      pathConfigs.map(c => 
-        c.id === configId 
-          ? { ...c, status: c.status === "Active" ? "Inactive" : "Active" } 
-          : c
-      )
-    );
-    setNotification("Status updated successfully");
-    setTimeout(() => setNotification(""), 2000);
-  };
-
-  const filteredConfigs = pathConfigs.filter(
-    (c) =>
-      c.reportName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.sourcePath.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.outputPath.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredConfigs = toViewModel(incomingFiles).filter((f) =>
+    (f.displayName || f.name || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   useEffect(() => {
@@ -822,6 +65,36 @@ export const FilePathManagement = () => {
   const endIdx = startIdx + pageSize;
   const paginatedConfigs = filteredConfigs.slice(startIdx, endIdx);
 
+  const formatSize = (bytes) => {
+    if (!bytes && bytes !== 0) return "";
+    const units = ["B", "KB", "MB", "GB"]; let i = 0; let v = bytes;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return `${v.toFixed(1)} ${units[i]}`;
+  };
+
+  const formatTime = (ms) => {
+    if (!ms) return "";
+    try { return new Date(ms).toLocaleString(); } catch { return ""; }
+  };
+
+  const sendOne = async (name) => {
+    setSendStatus((s) => ({ ...s, [name]: "sending" }));
+    try {
+      const res = await fetch(`http://localhost:8080/api/routing/route-one?fileName=${encodeURIComponent(name)}`, { method: "POST" });
+      const data = await res.json();
+      if (data && data.moved) {
+        setSendStatus((s) => ({ ...s, [name]: "success" }));
+        // refresh list to remove if moved
+        fetchIncoming();
+      } else {
+        const reason = data && data.reason ? data.reason : "failed";
+        setSendStatus((s) => ({ ...s, [name]: `error:${reason}` }));
+      }
+    } catch (e) {
+      setSendStatus((s) => ({ ...s, [name]: `error:${e.message}` }));
+    }
+  };
+
   return (
     <div className="fpm-container">
       {notification && (
@@ -831,16 +104,14 @@ export const FilePathManagement = () => {
       <div className="fpm-header">
         <div>
           <h1 className="fpm-title">File Path Management</h1>
-          <p className="fpm-subtitle">Configure automatic file transfer paths for reports</p>
+          <p className="fpm-subtitle">Send incoming files to their mapped report folders</p>
         </div>
-        <button className="fpm-btn-primary" onClick={() => openModal()}>
-          + Add Path Configuration
-        </button>
+        {/* Configuration modal removed for this demo flow */}
       </div>
 
       <input
         type="text"
-        placeholder="Search by report name or path..."
+        placeholder="Search by report name (filename after prefix)..."
         className="fpm-search-input"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
@@ -852,49 +123,47 @@ export const FilePathManagement = () => {
             <th>Report Name</th>
             <th>Source Path</th>
             <th>Output Path</th>
-            <th>Status</th>
-            <th>Created</th>
             <th>Actions</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {paginatedConfigs.length === 0 ? (
             <tr>
-              <td colSpan="6" className="fpm-no-data">
-                No path configurations found
+              <td colSpan="5" className="fpm-no-data">
+                No incoming files found
               </td>
             </tr>
           ) : (
-            paginatedConfigs.map((config) => (
-              <tr key={config.id}>
-                <td className="fpm-bold">{config.reportName}</td>
-                <td className="fpm-path">{config.sourcePath}</td>
-                <td className="fpm-path">{config.outputPath}</td>
-                <td>
-                  <span 
-                    className={`fpm-badge ${config.status.toLowerCase()}`}
-                    onClick={() => toggleStatus(config.id)}
-                  >
-                    {config.status}
-                  </span>
-                </td>
-                <td>{new Date(config.createdDate).toLocaleDateString()}</td>
-                <td>
-                  <button
-                    className="fpm-btn-edit"
-                    onClick={() => openModal(config)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="fpm-btn-delete"
-                    onClick={() => openDeleteConfirm(config.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))
+            paginatedConfigs.map((f) => {
+              const st = sendStatus[f.name] || "idle";
+              const isSending = st === "sending";
+              const isSuccess = st === "success";
+              const isError = st.startsWith && st.startsWith("error:");
+              return (
+                <tr key={f.name}>
+                  <td className="fpm-bold">{f.displayName || f.name}</td>
+                  <td className="fpm-path">{f.sourcePath}</td>
+                  <td className="fpm-path">{f.outputPath}</td>
+                  <td>
+                    <button
+                      className={`fpm-btn-primary ${isSuccess ? 'fpm-btn-success' : ''}`}
+                      disabled={isSending || isSuccess}
+                      onClick={() => sendOne(f.name)}
+                    >
+                      {isSuccess ? 'Sent' : 'Send'}
+                    </button>
+                  </td>
+                  <td>
+                    {isSuccess ? (
+                      <span className="fpm-badge active">ACTIVE</span>
+                    ) : (
+                      <span className="fpm-badge inactive">INACTIVE</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
@@ -961,84 +230,10 @@ export const FilePathManagement = () => {
         </div>
       </div>
 
-      {showModal && (
-        <div className="fpm-modal-backdrop" onClick={closeModal}>
-          <div className="fpm-modal" onClick={(e) => e.stopPropagation()}>
-            <h2 className="fpm-modal-title">
-              {editingConfig ? "Edit Path Configuration" : "Create Path Configuration"}
-            </h2>
-            <input
-              type="text"
-              placeholder="Report Name (e.g., KYC Reports)"
-              className="fpm-input"
-              value={formData.reportName}
-              onChange={(e) =>
-                setFormData({ ...formData, reportName: e.target.value })
-              }
-              autoFocus
-            />
-            <input
-              type="text"
-              placeholder="Source Path (e.g., /incoming/kyc)"
-              className="fpm-input"
-              value={formData.sourcePath}
-              onChange={(e) =>
-                setFormData({ ...formData, sourcePath: e.target.value })
-              }
-            />
-            <input
-              type="text"
-              placeholder="Output Path (e.g., /reports/compliance/kyc)"
-              className="fpm-input"
-              value={formData.outputPath}
-              onChange={(e) =>
-                setFormData({ ...formData, outputPath: e.target.value })
-              }
-            />
-            <select
-              className="fpm-select"
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value })
-              }
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-            <div className="fpm-modal-actions">
-              <button className="fpm-btn-cancel" onClick={closeModal}>
-                Cancel
-              </button>
-              <button className="fpm-btn-primary" onClick={saveConfig}>
-                {editingConfig ? "Update" : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeleteConfirm && (
-        <div className="fpm-modal-backdrop" onClick={closeDeleteConfirm}>
-          <div className="fpm-modal" onClick={(e) => e.stopPropagation()}>
-            <h2 className="fpm-modal-title">Delete Path Configuration</h2>
-            <p className="fpm-modal-text">
-              Are you sure you want to delete this path configuration? This action cannot be undone.
-            </p>
-            <div className="fpm-modal-actions">
-              <button className="fpm-btn-cancel" onClick={closeDeleteConfirm}>
-                Cancel
-              </button>
-              <button className="fpm-btn-delete" onClick={deleteConfig}>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modals for CRUD removed in this demo */}
     </div>
   );
 };
-
 
 
 
@@ -1098,10 +293,10 @@ export const FilePathManagement = () => {
   background: #2563eb;
   color: white;
   border: none;
-  padding: 12px 24px;
+  padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
@@ -1111,6 +306,18 @@ export const FilePathManagement = () => {
   background: #1d4ed8;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.fpm-btn-success {
+  background: #58B24C;
+  color: #ffffff;
+  cursor: default;
+}
+
+.fpm-btn-success:hover {
+  background: #58B24C;
+  transform: none;
+  box-shadow: 0 2px 6px rgba(88, 178, 76, 0.25);
 }
 
 .fpm-search-input {
@@ -1456,4 +663,1849 @@ export const FilePathManagement = () => {
   margin-left: 8px;
   color: #6c757d;
   font-size: 0.85rem;
+}
+
+
+
+
+
+
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+    LogOut,
+    RefreshCw,
+    Database,
+    AlertCircle,
+    FileText,
+    Shield,
+    Calendar,
+    Bell,
+    X,
+    Search,
+    Download,
+    ChevronLeft,
+    ChevronRight,
+    FileArchive,
+    FileSpreadsheet,
+    File as FileGeneric,
+} from 'lucide-react';
+import './OpsDashboard.css';
+
+/** ---------- Small style helpers (unchanged) ---------- */
+const S = {
+    card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12 },
+    pad: { padding: 20 },
+    row: (jc = 'space-between', ai = 'center', gap = 12) => ({
+        display: 'flex',
+        justifyContent: jc,
+        alignItems: ai,
+        gap,
+    }),
+    btn: ({ primary } = {}) => ({
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 18px',
+        borderRadius: 8,
+        border: primary ? 'none' : '1px solid #e5e7eb',
+        background: primary ? '#0473EA' : '#fff',
+        color: primary ? '#fff' : '#333',
+        cursor: 'pointer',
+        fontWeight: 600,
+        fontSize: 14,
+    }),
+    tinyBtn: (danger = false) => ({
+        padding: '6px 12px',
+        borderRadius: 6,
+        border: '1px solid #e5e7eb',
+        background: '#fff',
+        color: danger ? '#dc2626' : '#333',
+        cursor: 'pointer',
+        fontSize: 13,
+        fontWeight: 600,
+    }),
+    badge: {
+        base: { padding: '6px 14px', borderRadius: 16, fontSize: 12, fontWeight: 500, border: '1px solid' },
+        completed: { background: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' },
+        'in-progress': { background: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' },
+        failed: { background: '#fee2e2', color: '#991b1b', borderColor: '#fecaca' },
+        pending: { background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' },
+        validating: { background: '#e0e7ff', color: '#3730a3', borderColor: '#c7d2fe' },
+    },
+};
+
+const Badge = ({ status }) => (
+    <span style={{ ...S.badge.base, ...(S.badge[status] || S.badge.pending) }}>{status}</span>
+);
+
+const ProgressBar = ({ value, status }) => (
+    <div className="progress-bar-bg">
+        <div
+            className="progress-bar-fill"
+            style={{
+                width: `${value}%`,
+                background: status === 'failed' ? '#dc2626' : status === 'in-progress' ? '#0473EA' : '#10b981',
+            }}
+        />
+    </div>
+);
+
+const Head = ({ title, subtitle, right }) => (
+    <div style={{ ...S.pad, borderBottom: '1px solid #e5e7eb', ...S.row() }}>
+        <div>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '4px 0 0', fontSize: 14, color: '#6b7280' }}>{subtitle}</p>}
+        </div>
+        {right}
+    </div>
+);
+
+const Tabs = ({ tabs, active, onChange }) => (
+    <div style={{ marginBottom: 24, borderBottom: '2px solid #e5e7eb' }}>
+        <div style={S.row('flex-start', 'center', 8)}>
+            {tabs.map((t) => (
+                <button
+                    key={t.id}
+                    onClick={() => onChange(t.id)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '12px 20px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: active === t.id ? '#0473EA' : '#6b7280',
+                        cursor: 'pointer',
+                        fontWeight: active === t.id ? 600 : 500,
+                        fontSize: 14,
+                        borderBottom: active === t.id ? '3px solid #0473EA' : '3px solid transparent',
+                        marginBottom: '-2px',
+                        transition: 'all 0.2s',
+                    }}
+                >
+                    {t.icon}
+                    {t.label}
+                </button>
+            ))}
+        </div>
+    </div>
+);
+
+/** ---------- Demo data (can be replaced with API hooks) ---------- */
+// Backend-driven storage list (replaces ALL_REPORTS for demo)
+const ALL_REPORTS = [];
+
+const STORAGE = [
+    { id: 1, name: 'AWS S3', organization: 'Finance Dept', status: 'active', latency: '40ms', lastJob: 'Success', lastSync: '2 mins ago', reports: 12 },
+    { id: 2, name: 'Azure Blob', organization: 'Risk Management', status: 'active', latency: '60ms', lastJob: 'Success', lastSync: '5 mins ago', reports: 8 },
+    { id: 3, name: 'Google Cloud', organization: 'Operations', status: 'syncing', latency: 'Running', lastJob: 'Running', lastSync: 'Running', reports: 15 },
+];
+
+// Replace the original SYNC_JOBS with this file-based version
+const SYNC_JOBS = [
+    { id: 1, file: 'Q4_Financial_Report.pdf', status: 'completed', progress: 100, files: 12, time: '2 mins ago' },
+    { id: 2, file: 'Operations_Summary.pdf', status: 'in-progress', progress: 67, files: 8, time: 'Running' },
+    { id: 3, file: 'Risk_Assessment_2024.xlsx', status: 'pending', progress: 0, files: 15, time: 'Scheduled' },
+    { id: 4, file: 'Monthly_Review_Timing.txt', status: 'failed', progress: 45, files: 5, time: '10 mins ago' },
+];
+
+const VALIDATION_QUEUE = [
+    { id: 1, name: 'Q4_Financial_Report.pdf', organization: 'Finance', source: 'AWS S3', size: '2.4 MB', uploaded: '10 Oct, 11:32', status: 'validating', format: 'PDF', integrity: 'Pass' },
+    { id: 2, name: 'Risk_Assessment_2024.xlsx', organization: 'Risk', source: 'Azure Blob', size: '856 KB', uploaded: '10 Oct, 10:21', status: 'pending', format: 'Excel', integrity: 'Checking' },
+    { id: 3, name: 'Operations_Summary.pdf', organization: 'Operations', source: 'Google Cloud', size: '1.8 MB', uploaded: '10 Oct, 10:02', status: 'validating', format: 'PDF', integrity: 'Pass' },
+];
+
+const PUBLISHED = [
+    { id: 1, name: 'Q4_Financial_Report.pdf', organization: 'Finance', publishedAt: '10 Oct, 11:32', version: 'v1.0', subscribers: 45, notifications: 'Sent', downloads: 38, type: 'PDF', folder: 'Compliance' },
+    { id: 2, name: 'Risk_Assessment_2024.xlsx', organization: 'Risk', publishedAt: '10 Oct, 10:21', version: 'v1.2', subscribers: 32, notifications: 'Sent', downloads: 28, type: 'Excel', folder: 'Credit Risk' },
+    { id: 3, name: 'Operations_Summary.pdf', organization: 'Operations', publishedAt: '10 Oct, 10:02', version: 'v1.0', subscribers: 28, notifications: 'Pending', downloads: 0, type: 'PDF', folder: 'General' },
+];
+
+/** AD access map (US04) */
+const AD_GROUPS = [
+    { group: 'Wealth Compliance', allows: { folders: ['Compliance'], reports: ['KYC', 'Dormant', 'AML'] } },
+    { group: 'Wealth User Admin', allows: { folders: ['Global User', 'General', 'Credit Risk', 'Compliance'] } },
+];
+
+function iconForType(type) {
+    switch (type) {
+        case 'PDF':
+            return <FileText style={{ width: 16, height: 16 }} />;
+        case 'Excel':
+            return <FileSpreadsheet style={{ width: 16, height: 16 }} />;
+        case 'ZIP':
+            return <FileArchive style={{ width: 16, height: 16 }} />;
+        case 'TXT':
+        default:
+            return <FileGeneric style={{ width: 16, height: 16 }} />;
+    }
+}
+
+/** ======================================================
+ *                     MAIN COMPONENT
+ *  ====================================================== */
+const OpsDashboard = ({ navigate }) => {
+    const user = { name: 'Ramesh', role: 'operations', adGroups: ['Wealth Compliance', 'Wealth User Admin'] };
+    const logout = () => navigate('landing');
+
+    const [activeTab, setActiveTab] = useState('published');
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+
+    // Notifications (US05)
+    const [notifOpen, setNotifOpen] = useState(false);
+    const [notifications, setNotifications] = useState([
+        { id: 'n1', title: 'New: Q4_Financial_Report.pdf', reportId: 'r1', time: '2m ago', unread: true },
+        { id: 'n2', title: 'Risk_Assessment_2024.xlsx published', reportId: 'r2', time: '10m ago', unread: false },
+    ]);
+
+    // Notification helpers (Admin-style UI, renamed to .notification-*)
+    const unreadCount = notifications.filter((n) => n.unread).length;
+
+    const markAsRead = (id) => {
+        setNotifications((arr) => arr.map((n) => (n.id === id ? { ...n, unread: false } : n)));
+    };
+
+    const markAllAsRead = () => {
+        setNotifications((arr) => arr.map((n) => ({ ...n, unread: false })));
+    };
+
+    const removeNotification = (id) => {
+        setNotifications((arr) => arr.filter((n) => n.id !== id));
+    };
+
+    // Report Search & Filters (US05, US06)
+    const [reportQuery, setReportQuery] = useState('');
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
+    const [reportType, setReportType] = useState('All');
+    const [folderFilter, setFolderFilter] = useState('All');
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 10;
+
+    // Favourites & Recently Viewed (slide 8)
+    const [recentlyViewed, setRecentlyViewed] = useState(['r2', 'r3']);
+
+    // Storage / Sync / Validation data
+    const [storageConnections] = useState(STORAGE);
+    const [syncJobs, setSyncJobs] = useState(SYNC_JOBS);
+    const [publishedReports, setPublishedReports] = useState(PUBLISHED);
+    const [storageFiles, setStorageFiles] = useState([]); // {name,size,modified}
+    const [importStatus, setImportStatus] = useState({}); // { [name]: 'idle'|'importing'|'success'|'error:msg' }
+
+    // Access control (US04) → compute allowed folders
+    const allowedFolders = useMemo(() => {
+        const g = AD_GROUPS.filter((g) => user.adGroups.includes(g.group));
+        const sets = new Set();
+        g.forEach((x) => x.allows.folders.forEach((f) => sets.add(f)));
+        return sets;
+    }, [user.adGroups]);
+
+    // Search domain = published + (optionally) all reports
+    // Map storage files to table rows
+    const extType = (name) => {
+        const n = (name || '').toLowerCase();
+        if (n.endsWith('.pdf')) return 'PDF';
+        if (n.endsWith('.xlsx') || n.endsWith('.xls')) return 'Excel';
+        if (n.endsWith('.zip')) return 'ZIP';
+        return 'TXT';
+    };
+
+    const reportsDomain = useMemo(() => {
+        return storageFiles.map((f, i) => ({
+            id: `s-${i}-${f.name}`,
+            name: f.name,
+            type: extType(f.name),
+            date: f.modified ? new Date(f.modified).toISOString() : new Date().toISOString(),
+            folder: 'Storage',
+        }));
+    }, [storageFiles]);
+
+    const filteredReports = useMemo(() => {
+        let rows = reportsDomain;
+
+        if (reportQuery.trim()) {
+            const q = reportQuery.toLowerCase();
+            rows = rows.filter((r) => r.name.toLowerCase().includes(q));
+        }
+        if (reportType !== 'All') {
+            rows = rows.filter((r) => r.type === reportType);
+        }
+        if (folderFilter !== 'All') {
+            rows = rows.filter((r) => r.folder === folderFilter);
+        }
+        if (fromDate) {
+            rows = rows.filter((r) => new Date(r.date) >= new Date(fromDate));
+        }
+        if (toDate) {
+            const end = new Date(toDate);
+            end.setHours(23, 59, 59, 999);
+            rows = rows.filter((r) => new Date(r.date) <= end);
+        }
+        return rows.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [reportsDomain, reportQuery, reportType, folderFilter, fromDate, toDate]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredReports.length / PAGE_SIZE));
+    useEffect(() => {
+        if (page > totalPages) setPage(1);
+    }, [totalPages, page]);
+
+    const pagedReports = filteredReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+    // Fetch storage list periodically
+    useEffect(() => {
+        const fetchStorage = async () => {
+            try {
+                const res = await fetch('http://localhost:8080/api/ops/storage');
+                const data = await res.json();
+                setStorageFiles(Array.isArray(data) ? data : []);
+            } catch (e) {
+                // ignore for demo
+            }
+        };
+        fetchStorage();
+        const id = setInterval(fetchStorage, 5000);
+        return () => clearInterval(id);
+    }, []);
+
+    const importOne = async (name) => {
+        setImportStatus((s) => ({ ...s, [name]: 'importing' }));
+        try {
+            const res = await fetch(`http://localhost:8080/api/ops/import-storage?fileName=${encodeURIComponent(name)}`, { method: 'POST' });
+            const data = await res.json();
+            if (data && data.imported) {
+                setImportStatus((s) => ({ ...s, [name]: 'success' }));
+            } else {
+                const reason = data && data.reason ? data.reason : 'failed';
+                setImportStatus((s) => ({ ...s, [name]: `error:${reason}` }));
+            }
+        } catch (e) {
+            setImportStatus((s) => ({ ...s, [name]: `error:${e.message}` }));
+        }
+    };
+
+    // Multi-select & batch download (US06)
+    const [selectedIds, setSelectedIds] = useState([]);
+    const toggleSelect = (id) =>
+        setSelectedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+    const selectAllPage = () => setSelectedIds(pagedReports.map((r) => r.id));
+    const clearSelection = () => setSelectedIds([]);
+
+    const batchDownload = () => {
+        // Simulate: in real app, request ZIP for selected items & dates (US06)
+        alert(`Importing ${selectedIds.length} report(s) as ZIP...`);
+        clearSelection();
+    };
+
+    const markViewed = (id) => {
+        setRecentlyViewed((cur) => [id, ...cur.filter((x) => x !== id)].slice(0, 8));
+    };
+
+    const failedOperations = syncJobs.filter((j) => j.status === 'failed');
+
+    const tabs = [
+        { id: 'published', label: 'Published Reports', icon: <FileText style={{ width: 16, height: 16 }} /> },
+        { id: 'sync', label: 'Sync Operations', icon: <RefreshCw style={{ width: 16, height: 16 }} /> },
+        // { id: 'monitoring', label: 'Remote Monitoring', icon: <Database style={{ width: 16, height: 16 }} /> }, // temporarily disabled
+    ];
+
+    /** ---------- helpers for UI ---------- */
+    const notifUnread = notifications.filter((n) => n.unread).length;
+    const openReportFromNotif = (n) => {
+        setActiveTab('published');
+        setReportQuery(n.title.replace('New: ', '').split(' ').join('_').toLowerCase());
+        setNotifications((arr) => arr.map((x) => (x.id === n.id ? { ...x, unread: false } : x)));
+        setNotifOpen(false);
+    };
+
+    return (
+        <div className="dash">
+            {/* Sidebar (unchanged structure) */}
+            <div className={`side ${sidebarOpen ? 'open' : ''}`}>
+                <div className="side-head">
+                    <span className="logo-icon"></span>
+                    <div>
+                        <h2>RW Tool</h2>
+                        <p>Operations Panel</p>
+                    </div>
+                </div>
+                <div className="side-nav">
+                    <p className="nav-label">Operations</p>
+                    {tabs.map((t) => (
+                        <button key={t.id} onClick={() => setActiveTab(t.id)} className={`nav-btn ${activeTab === t.id ? 'active' : ''}`}>
+                            <span>{t.icon}</span>
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Main */}
+            <div className="main">
+                <div className="top">
+                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="menu">☰</button>
+                    <div className="actions">
+                        {/* Admin-style dropdown UI, renamed to .notification-* */}
+                        <div className="notification-container">
+                            <button
+                                type="button"
+                                className="notification-trigger"
+                                aria-label="Notifications"
+                                onClick={() => setNotifOpen(!notifOpen)}
+                            >
+                                <Bell size={20} />
+                                {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+                            </button>
+
+                            {notifOpen && (
+                                <div className="notification-dropdown">
+                                    <div className="notification-header">
+                                        <h5 className="notification-title">Notifications</h5>
+                                        {unreadCount > 0 && (
+                                            <button className="notification-mark-all" onClick={markAllAsRead}>
+                                                Mark all read
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="notification-list">
+                                        {notifications.length === 0 ? (
+                                            <div className="notification-empty">
+                                                <Bell size={40} />
+                                                <p>No notifications</p>
+                                            </div>
+                                        ) : (
+                                            notifications.map((n) => (
+                                                <div
+                                                    key={n.id}
+                                                    className={`notification-item ${n.unread ? 'unread' : ''}`}
+                                                    onClick={() => {
+                                                        markAsRead(n.id);
+                                                        openReportFromNotif(n);
+                                                    }}
+                                                >
+                                                    {/* Simple type chip — use 'file' for titles mentioning file/published; else 'subscription' */}
+                                                    <div
+                                                        className={`notification-icon ${n.title.toLowerCase().includes('published') || n.title.toLowerCase().includes('file')
+                                                            ? 'file'
+                                                            : 'subscription'
+                                                            }`}
+                                                    >
+                                                        <FileText size={18} />
+                                                    </div>
+
+                                                    <div className="notification-content">
+                                                        <h6>{n.title}</h6>
+                                                        <p>{n.reportId ? `Open report ${n.reportId}` : 'View details'}</p>
+                                                        <span className="notification-time">{n.time}</span>
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        className="notification-close"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            removeNotification(n.id);
+                                                        }}
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {notifications.length > 0 && (
+                                        <div className="notification-footer">
+                                            <a href="#" className="notification-view-all">View All Activity</a>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* keep your logout button as-is */}
+                        <button onClick={logout} className="logout-btn">
+                            <LogOut style={{ width: 16, height: 16 }} /> Logout
+                        </button>
+                    </div>
+
+                </div>
+
+                <div className="content">
+                    {/* Header */}
+                    <div style={{ marginBottom: 24, ...S.row('space-between', 'flex-start') }}>
+                        <div>
+                            <h2 style={{ margin: '0 0 4px', fontSize: 28, fontWeight: 700, color: '#0473EA' }}>Operations Dashboard</h2>
+                            <p style={{ margin: 0, color: '#6b7280', fontSize: 15 }}>Bridge between remote storage & RW Tool</p>
+                        </div>
+                        <div style={S.row('flex-start')}>
+                            <button style={S.btn()}> <Calendar style={{ width: 16, height: 16 }} /> Schedule Sync</button>
+                            <button style={S.btn({ primary: true })}> <RefreshCw style={{ width: 16, height: 16 }} /> Sync All</button>
+                        </div>
+                    </div>
+
+                    {/* KPI — same size, 5 across, with Admin-style hover effects, keeping your icon colors */}
+                    <div className="kpi-grid">
+                        {/* Active Connections */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Active Connections</p>
+                                <span className="kpi-icon">
+                                    <Database style={{ width: 20, height: 20, color: '#0473EA' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">{STORAGE.filter((s) => s.status === 'active').length}</h2>
+
+                        </div>
+
+                        {/* Pending Validation */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Pending Validation</p>
+                                <span className="kpi-icon">
+                                    <Shield style={{ width: 20, height: 20, color: '#f59e0b' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">{VALIDATION_QUEUE.length}</h2>
+
+                        </div>
+
+                        {/* Sync Jobs Today */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Sync Jobs Today</p>
+                                <span className="kpi-icon">
+                                    <RefreshCw style={{ width: 20, height: 20, color: '#10b981' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">48</h2>
+
+                        </div>
+
+                        {/* Published Reports */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Published Reports</p>
+                                <span className="kpi-icon">
+                                    <FileText style={{ width: 20, height: 20, color: '#8b5cf6' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">{PUBLISHED.length}</h2>
+
+                        </div>
+
+                        {/* Failed Operations */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Failed Operations</p>
+                                <span className="kpi-icon">
+                                    <AlertCircle style={{ width: 20, height: 20, color: '#dc2626' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">{SYNC_JOBS.filter((j) => j.status === 'failed').length}</h2>
+
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+
+                    {/* Remote Monitoring */}
+                    {/* {activeTab === 'monitoring' && (
+                        <div style={S.card}>
+                            <Head title="Remote Monitoring" subtitle="Monitor data source latency and sync condition" />
+                            <div style={S.pad}>
+                                {storageConnections.map((c) => (
+                                    <div key={c.id} style={{ ...S.card, borderColor: '#e5e7eb', borderRadius: 10, padding: 16, marginBottom: 16, ...S.row() }}>
+                                        <div style={S.row('flex-start')}>
+                                            <div className="icon-48"><Database style={{ width: 24, height: 24, color: '#0473EA' }} /></div>
+                                            <div>
+                                                <p className="title-16">{c.name}</p>
+                                                <p className="muted-13">{c.organization} • {c.reports} reports • Latency: {c.latency} • Last Job: {c.lastJob} • Last sync: {c.lastSync}</p>
+                                            </div>
+                                        </div>
+                                        <div style={S.row()}>
+                                            <Pill ok={c.status === 'active'}>{c.status === 'active' ? 'Active' : 'Syncing'}</Pill>
+                                            <button style={S.tinyBtn()}>Check Health</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                <button style={{ ...S.btn({ primary: true }), marginTop: 12 }}>
+                                    <PlusCircle style={{ width: 16, height: 16 }} /> Add Connection
+                                </button>
+                            </div>
+                        </div>
+                    )} */}
+
+                    {/* Sync Operations */}
+                    {activeTab === 'sync' && (
+                        <div>
+                            {failedOperations.length > 0 && (
+                                <div style={{ ...S.card, background: '#fef2f2', borderColor: '#fecaca', marginBottom: 24, ...S.pad }}>
+                                    <div style={{ ...S.row(), marginBottom: 16 }}>
+                                        <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#991b1b' }}>{failedOperations.length} failed operation(s)</p>
+                                        <button style={S.tinyBtn(true)}>Retry all failed</button>
+                                    </div>
+                                    {failedOperations.length > 0 && (
+                                        <div style={{ ...S.card, background: '#fef2f2', borderColor: '#fecaca', marginBottom: 24, ...S.pad }}>
+                                            <div style={{ ...S.row(), marginBottom: 16 }}>
+                                                <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#991b1b' }}>
+                                                    {failedOperations.length} failed operation(s)
+                                                </p>
+                                                <button style={S.tinyBtn(true)}>Retry all failed</button>
+                                            </div>
+                                            {failedOperations.map((op) => (
+                                                <div key={op.id} className="failed-op">
+                                                    <div>
+                                                        <p className="title-15">{op.file}</p>
+                                                        <p className="muted-13">{op.files} files · {op.time}</p>
+                                                    </div>
+                                                    <div style={S.row()}>
+                                                        <Badge status="failed" />
+                                                        <button style={S.tinyBtn()}>Retry</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                </div>
+                            )}
+
+                            <div style={S.card}>
+                                <Head title="Sync Operations" subtitle="Fetch and transfer reports from remote sources" />
+                                <div style={S.pad}>
+                                    {syncJobs.map((j) => (
+                                        <div key={j.id} style={{ marginBottom: 20 }}>
+                                            <div style={{ ...S.row(), marginBottom: 8 }}>
+                                                <div>
+                                                    <p className="title-15">{j.file}</p>
+                                                    <p className="muted-13">{j.files} files · {j.time}</p>
+                                                </div>
+                                                <div style={S.row()}>
+                                                    <Badge status={j.status} />
+                                                    {j.status === 'in-progress' && <button style={S.tinyBtn()}>Pause</button>}
+                                                    {j.status === 'failed' && <button style={S.tinyBtn()}>Retry</button>}
+                                                </div>
+                                            </div>
+                                            {j.status !== 'pending' && <ProgressBar value={j.progress} status={j.status} />}
+                                        </div>
+                                    ))}
+
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Published Reports — search, filters, listing, favourites, recently viewed, batch download */}
+                    {activeTab === 'published' && (
+                        <div className="pub-full">
+                            <div className="pub-main" style={S.card}>
+                                <Head
+                                    title="Published Reports"
+                                    subtitle="Search, filter, and download reports"
+                                    right={
+                                        <div className="toolbar">
+                                            <div className="search">
+                                                <Search size={16} />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search reports by name..."
+                                                    value={reportQuery}
+                                                    onChange={(e) => setReportQuery(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="filters">
+                                                <FileText size={14} />
+                                                <select value={reportType} onChange={(e) => setReportType(e.target.value)}>
+                                                    <option>All</option>
+                                                    <option>PDF</option>
+                                                    <option>Excel</option>
+                                                    <option>TXT</option>
+                                                </select>
+
+                                                <Calendar size={14} />
+                                                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                                                <span className="sep">to</span>
+                                                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+                                            </div>
+                                        </div>
+                                    }
+                                />
+
+                                <div className="pub-wrap">
+                                    <table className="pub-table">
+
+                                        <thead>
+                                            <tr>
+                                                <th className="col-select" style={{ width: 36, padding: 0 }}>
+                                                    <div className="chk-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            onChange={(e) => (e.target.checked ? selectAllPage() : clearSelection())}
+                                                        />
+                                                    </div>
+                                                </th>
+
+                                                <th className="col-no">No.</th>
+                                                <th className="col-report" style={{ width: '40%', paddingRight: 6 }}>Report</th>
+
+                                                <th className="col-type">Type</th>
+                                                <th className="col-date">Date</th>
+                                                <th className="col-date">Status</th>
+                                                <th className="col-actions">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {pagedReports.map((r, idx) => {
+                                                const st = importStatus[r.name] || 'idle';
+                                                const isImporting = st === 'importing';
+                                                const isSuccess = st === 'success';
+                                                const isError = st.startsWith && st.startsWith('error:');
+                                                return (
+                                                <tr key={r.id} onClick={() => markViewed(r.id)}>
+                                                    <td className="col-select" style={{ width: 36, padding: 0 }}>
+                                                        <div className="chk-center">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedIds.includes(r.id)}
+                                                                onChange={() => toggleSelect(r.id)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="col-no">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                                                    <td className="report-cell col-report" style={{ width: '50%', paddingRight: 6 }}>
+
+                                                        <span className="type-icon">{iconForType(r.type)}</span>
+                                                        <span className="report-name">{r.name}</span>
+                                                    </td>
+
+                                                    <td className="muted-td col-type">{r.type}</td>
+                                                    <td className="muted-td col-date">{new Date(r.date).toLocaleString()}</td>
+                                                    <td className="muted-td">
+                                                        {isSuccess && <span className="status-badge success">Success</span>}
+                                                        {isError && <span className="status-badge failure">Failure</span>}
+                                                        {isImporting && <span className="status-badge">Importing…</span>}
+                                                        {!isImporting && !isSuccess && !isError && <span className="status-badge">Pending</span>}
+                                                    </td>
+                                                    <td className="row-8 col-actions">
+                                                        <button
+                                                            className={`approve-btn ${isSuccess ? 'success' : ''}`}
+                                                            disabled={isImporting || isSuccess}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (!isSuccess) importOne(r.name);
+                                                            }}
+                                                        >
+                                                            {isSuccess ? 'Imported' : (<><Download size={14} /> Import</>)}
+                                                        </button>
+                                                    </td>
+
+                                                </tr>
+                                            )})}
+                                            {pagedReports.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={7} className="muted-td">No reports found.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+
+                                    </table>
+                                </div>
+
+                                <div className="pub-footer">
+                                    <div className="row-8">
+                                        <button className="approve-btn" disabled={!selectedIds.length} onClick={batchDownload}>
+                                            <Download size={14} /> Import selected (ZIP)
+                                        </button>
+                                        {selectedIds.length > 0 && (
+                                            <button className="reject-btn" onClick={clearSelection}>Clear selection</button>
+                                        )}
+                                    </div>
+                                    <div className="pager">
+                                        <button className="tiny-icon-btn" onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        <span>Page {page} / {totalPages}</span>
+                                        <button className="tiny-icon-btn" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default OpsDashboard;
+
+
+
+.dash {
+    display: flex;
+    min-height: 100vh;
+    background: #f9fafb;
+}
+
+/* Sidebar */
+.side {
+    width: 260px;
+    background: #fff;
+    border-right: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+    transform: translateZ(0);
+}
+
+.side.open {
+    transform: translateX(0);
+}
+
+.side-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.side-nav {
+    padding: 20px;
+}
+
+.nav-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 8px;
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Sidebar selected — match original Sidebar gradient */
+.side .nav-btn.active {
+    background: linear-gradient(90deg, rgba(56, 210, 0, 0.2), rgba(56, 210, 0, 0.1));
+    border-left: 3px solid #38D200;
+    font-weight: 600;
+    transition: background 180ms ease, transform 180ms ease;
+    padding-left: 13px;
+    /* compensates for border-left */
+    position: relative;
+}
+
+.side .nav-btn.active::before {
+    content: '';
+    position: absolute;
+    right: 12px;
+    width: 6px;
+    height: 6px;
+    background: #38D200;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #38D200;
+}
+
+.side .nav-btn.active:hover,
+.side .nav-btn.active:focus {
+    background: linear-gradient(90deg, rgba(56, 210, 0, 0.26), rgba(56, 210, 0, 0.14));
+}
+
+/* Main */
+.main {
+    flex: 1;
+    padding: 24px;
+}
+
+.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.menu {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logout-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: none;
+    background: #dc2626;
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* Notifications */
+.icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+}
+
+.notif {
+    position: relative;
+}
+
+/* .notif-dot {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #dc2626;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 10px;
+    padding: 2px 6px;
+}
+
+.notif-list {
+    position: absolute;
+    right: 0;
+    top: 44px;
+    width: 320px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    z-index: 10;
+}
+
+.notif-head {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 14px;
+} */
+
+.link-btn {
+    background: transparent;
+    border: none;
+    color: #0473EA;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* .notif-item {
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    background: #fff;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.notif-item.unread {
+    background: #f0f7ff;
+}
+
+.notif-item:hover {
+    background: #f9fafb;
+}
+
+.notif-title {
+    font-size: 13px;
+    color: #111;
+}
+
+.notif-time {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.notif-empty {
+    padding: 12px;
+    font-size: 13px;
+    color: #6b7280;
+} */
+
+/* Progress Bar */
+.progress-bar-bg {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: #e5e7eb;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+/* Text helpers */
+.icon-48 {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.title-16 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111;
+}
+
+.title-15 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #111;
+}
+
+.muted-13 {
+    margin: 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.muted-td {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.row-8 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+/* Failed op item */
+.failed-op {
+    background: #fff;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+/* Keep scrollbar space consistent & remove left bar */
+html,
+body {
+    margin: 0;
+    padding: 0;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+    background: #f9fafb;
+}
+
+/* Make sure .dash layout doesn't shift on scroll changes */
+.dash {
+    overflow: hidden;
+}
+
+/* Keep main scroll stable */
+.main {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+/* Prevent table overflow from causing width jump */
+.content table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.content {
+    overflow-x: auto;
+}
+
+.content::-webkit-scrollbar {
+    height: 8px;
+}
+
+
+
+.approve-btn,
+.reject-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.approve-btn {
+    color: #0473EA;
+}
+
+/* Success state for approve/import button */
+.approve-btn.success {
+    background: #58B24C;
+    color: #ffffff;
+    border-color: #58B24C;
+    cursor: default;
+}
+
+.approve-btn.success:hover {
+    background: #58B24C;
+}
+
+.reject-btn {
+    color: #dc2626;
+}
+
+/* Status badges (align with admin FPM style) */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    border: 1px solid transparent;
+}
+
+.status-badge.success {
+    background: #E8F5E9;
+    color: #2E7D32;
+    border-color: #58B24C;
+}
+
+.status-badge.failure {
+    background: #FFEBEE;
+    color: #C62828;
+    border-color: #EF5350;
+}
+
+/* --- Published Reports --- */
+.pub-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+}
+
+.pub-main {
+    overflow: hidden;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.search {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.search input {
+    border: none;
+    outline: none;
+    font-size: 14px;
+    background: transparent;
+    min-width: 220px;
+    height: 20px;
+}
+
+.filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.filters svg {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.filters select,
+.filters input[type="date"] {
+    border: none;
+    outline: none;
+    font-size: 14px;
+    background: transparent;
+    height: 34px;
+    line-height: 34px;
+    padding: 0 8px;
+}
+
+/* Make date inputs visually align with select */
+.filters input[type="date"]::-webkit-datetime-edit,
+.filters input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+.filters input[type="date"]::-webkit-datetime-edit-text,
+.filters input[type="date"]::-webkit-datetime-edit-month-field,
+.filters input[type="date"]::-webkit-datetime-edit-day-field,
+.filters input[type="date"]::-webkit-datetime-edit-year-field,
+.filters input[type="date"]::-webkit-inner-spin-button,
+.filters input[type="date"]::-webkit-calendar-picker-indicator {
+    line-height: 34px;
+}
+
+.filters .sep {
+    color: #6b7280;
+    font-size: 13px;
+    padding: 0 4px;
+}
+
+.pub-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.pub-table {
+    width: max-content;
+    min-width: 980px;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.pub-table th,
+.pub-table td {
+    white-space: nowrap;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    text-align: left;
+}
+
+.type-icon {
+    margin-right: 8px;
+    display: inline-flex;
+    vertical-align: middle;
+}
+
+.ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    max-width: 220px;
+    vertical-align: bottom;
+}
+
+.pub-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.pager {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tiny-icon-btn {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.pub-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.side-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 700;
+}
+
+.side-card-body {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.side-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.side-item:hover {
+    background: #f9fafb;
+}
+
+
+/* Responsive */
+@media (max-width: 1100px) {
+    .pub-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pub-side {
+        order: 2;
+    }
+}
+
+.pub-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    /* Ensures consistent column widths */
+}
+
+.pub-table th,
+.pub-table td {
+    padding: 12px 14px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 14px;
+    color: #111;
+}
+
+/* No wrap for headers */
+.pub-table th {
+    white-space: nowrap;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* Wrap long report names vertically */
+.report-cell {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    word-wrap: break-word;
+    white-space: normal;
+    /* allow wrapping */
+    overflow-wrap: anywhere;
+    /* breaks very long filenames */
+}
+
+.report-name {
+    flex: 1;
+    word-break: break-word;
+}
+
+/* Make the table horizontally scrollable if smaller screens */
+.pub-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Fix column alignment for numeric data */
+.muted-td {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+/* Center align small numeric fields */
+.pub-table td:nth-child(2),
+.pub-table td:nth-last-child(1) {
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Report column — flexible, wraps long names */
+th.col-report,
+td.col-report {
+    min-width: 200px;
+    max-width: 260px;
+}
+
+/* Number column — small + centered */
+th.col-no,
+td.col-no {
+    width: 44px;
+    min-width: 44px;
+    text-align: center;
+    padding-left: 6px;
+    padding-right: 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Selection column — small + centered */
+th.col-select,
+td.col-select {
+    width: 36px;
+    min-width: 36px;
+    padding-left: 6px;
+    padding-right: 6px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.report-name {
+    flex: 1;
+}
+
+/* Type / Downloads — narrow */
+th.col-type,
+td.col-type {
+    width: 75px;
+    /* was 80px */
+    min-width: 75px;
+    padding-left: 6px;
+    /* pulls it visually closer to Org */
+    text-align: center;
+}
+
+th.col-downloads,
+td.col-downloads {
+    width: 90px;
+    min-width: 90px;
+    text-align: center;
+}
+
+/* Org / Date / Actions — reasonable */
+th.col-org,
+td.col-org {
+    width: 110px;
+    /* was 140px */
+    min-width: 110px;
+    padding-right: 6px;
+    /* reduces spacing on the right */
+}
+
+th.col-date,
+td.col-date {
+    width: 200px;
+    min-width: 200px;
+}
+
+th.col-actions,
+td.col-actions {
+    width: 100px;
+    min-width: 100px;
+    padding-left: 4px;
+    /* new: pulls it closer to Date */
+    padding-right: 4px;
+    /* keeps spacing even */
+}
+
+
+/* Horizontal scroll for small screens */
+.pub-wrap {
+    overflow-x: auto;
+}
+
+/* Optional tiny vertical alignment tweak */
+th.col-select,
+td.col-select {
+    line-height: 0;
+}
+
+th.col-select input,
+td.col-select input {
+    width: 16px;
+    height: 16px;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Ensure perfect vertical centering for selection checkboxes */
+.chk-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.col-select input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+}
+
+/* Force Report/Org column widths to respect inline styles */
+th.col-report,
+td.col-report,
+th.col-org,
+td.col-org {
+    min-width: 0 !important;
+    max-width: none !important;
+}
+
+/* ===== Notifications (Admin style, renamed to .notification-*) ===== */
+.notification-container {
+    position: relative;
+    display: inline-block;
+}
+
+.notification-trigger {
+    position: relative;
+    cursor: pointer;
+    padding: 0.5rem;
+    border: none;
+    /* remove any outline or border */
+    outline: none;
+    /* ensure no gray ring */
+    background: transparent;
+    /* no background by default */
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+}
+
+
+.notification-trigger:hover {
+    background-color: #f1f5f9;
+}
+
+.notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #ef4444;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 380px;
+    max-height: 500px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.notification-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fc;
+}
+
+.notification-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.notification-mark-all {
+    background: none;
+    border: none;
+    color: #0473BA;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.2s ease;
+}
+
+.notification-mark-all:hover {
+    color: #38D200;
+    text-decoration: underline;
+}
+
+.notification-list {
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.notification-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: #94a3b8;
+}
+
+.notification-empty p {
+    margin-top: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.notification-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    position: relative;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fc;
+}
+
+.notification-item.unread {
+    background-color: #eff6ff;
+}
+
+.notification-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(135deg, #0473BA, #38D200);
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.notification-icon.subscription {
+    background: linear-gradient(135deg, #0473BA, #38D200);
+}
+
+.notification-icon.file {
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-content h6 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0 0 0.25rem 0;
+}
+
+.notification-content p {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    height: fit-content;
+}
+
+.notification-close:hover {
+    background-color: #fee2e2;
+    color: #ef4444;
+}
+
+.notification-footer {
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid #e2e8f0;
+    text-align: center;
+    background: #f8f9fc;
+}
+
+.notification-view-all {
+    color: #0473BA;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.notification-view-all:hover {
+    color: #38D200;
+    text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+    .notification-dropdown {
+        width: 320px;
+        right: -50px;
+    }
+}
+
+/* ===== KPI grid — 5 across, same size as original ===== */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+    /* matches your old spacing */
+    margin-bottom: 24px;
+    /* matches old spacing */
+    overflow: visible;
+    /* allow hovered cards to visually grow */
+}
+
+/* Keep the existing .kpi-grid as-is */
+
+/* Make each card a simple vertical stack */
+.kpi-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    border-left: 4px solid #0473BA;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
+    will-change: transform;
+    transform: translateZ(0);
+    display: flex;
+    /* new */
+    flex-direction: column;
+    /* new */
+}
+
+/* Subtle hover; no reflow */
+.kpi-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 10px 24px rgba(4, 115, 186, 0.15);
+    border-left-color: #38D200;
+    z-index: 2;
+}
+
+/* Top row: ensure a consistent height so numbers line up perfectly */
+.kpi-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* This is the key: reserve enough space for 1–2 line titles + icon */
+    min-height: 46px;
+    /* tweak 44–52px if your titles differ */
+}
+
+/* Title + icon keep your original look */
+.kpi-label {
+    margin: 0;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.kpi-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Number sits a little lower and will align across all cards */
+.kpi-value {
+    margin: 8px 0 0 0;
+    /* moves the number down slightly */
+    font-size: 32px;
+    font-weight: 700;
+    color: #0473BA;
+    line-height: 1.1;
+    transition: color 0.2s ease;
+}
+
+.kpi-card:hover .kpi-value {
+    color: #38D200;
+}
+
+/* We removed the subline; if it still exists anywhere, hide it */
+.kpi-sub {
+    display: none;
 }
