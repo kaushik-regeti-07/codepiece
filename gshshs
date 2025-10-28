@@ -1,0 +1,249 @@
+import { useState, useEffect } from "react";
+import "./FilePathManagement.css";
+
+export const FilePathManagement = () => {
+  // Incoming files shown to Admin with a Send button
+  const [incomingFiles, setIncomingFiles] = useState([]); // {name, size, modified}
+  const [sendStatus, setSendStatus] = useState({}); // { [fileName]: 'idle'|'sending'|'success'|'error:msg' }
+  const [notification, setNotification] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const fetchIncoming = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/routing/incoming");
+      const data = await res.json();
+      setIncomingFiles(Array.isArray(data) ? data : []);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchIncoming();
+    const id = setInterval(fetchIncoming, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+
+  const deriveGroup = (prefix) => {
+    const lower = (prefix || "").toLowerCase();
+    if (lower === "finance") return "Finance";
+    if (lower === "risk") return "Risk"; // Risk Management → Risk
+    if (lower === "trading") return "Trading";
+    if (lower === "hr") return "HR"; // HR Analytics → HR
+    if (lower === "operations") return "Operations";
+    if (lower === "compliance") return "Compliance";
+    // fallback capitalize
+    return prefix ? prefix[0].toUpperCase() + prefix.slice(1) : "Unmapped";
+  };
+
+  const toViewModel = (items) => {
+    return items.map((f) => {
+      const raw = f.name || "";
+      const idx = raw.indexOf("_");
+      const prefix = idx > 0 ? raw.substring(0, idx) : "";
+      const display = idx > 0 ? raw.substring(idx + 1) : raw;
+      const group = deriveGroup(prefix);
+      const outputPath = `reports/${group}`;
+      return { ...f, displayName: display, sourcePath: "incoming/", outputPath, prefix };
+    });
+  };
+
+  const filteredConfigs = toViewModel(incomingFiles).filter((f) =>
+    (f.displayName || f.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const totalItems = filteredConfigs.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPageSafe = Math.min(currentPage, totalPages);
+  const startIdx = (currentPageSafe - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const paginatedConfigs = filteredConfigs.slice(startIdx, endIdx);
+
+  const formatSize = (bytes) => {
+    if (!bytes && bytes !== 0) return "";
+    const units = ["B", "KB", "MB", "GB"]; let i = 0; let v = bytes;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return `${v.toFixed(1)} ${units[i]}`;
+  };
+
+  const formatTime = (ms) => {
+    if (!ms) return "";
+    try { return new Date(ms).toLocaleString(); } catch { return ""; }
+  };
+
+  const sendOne = async (name) => {
+    setSendStatus((s) => ({ ...s, [name]: "sending" }));
+    try {
+      const res = await fetch(`http://localhost:8080/api/routing/route-one?fileName=${encodeURIComponent(name)}`, { method: "POST" });
+      if (!res.ok) {
+        const txt = await res.text();
+        setSendStatus((s) => ({ ...s, [name]: `error:${res.status}` }));
+        setNotification(`Send failed (${res.status}). ${txt || ""}`.trim());
+        setTimeout(() => setNotification(""), 3000);
+        return;
+      }
+      const data = await res.json();
+      if (data && data.moved) {
+        setSendStatus((s) => ({ ...s, [name]: "success" }));
+        setNotification(`Sent ${name}`);
+        setTimeout(() => setNotification(""), 1500);
+        // refresh list to remove if moved
+        fetchIncoming();
+      } else {
+        const reason = data && data.reason ? data.reason : "failed";
+        setSendStatus((s) => ({ ...s, [name]: `error:${reason}` }));
+        setNotification(`Send failed: ${reason}`);
+        setTimeout(() => setNotification(""), 3000);
+      }
+    } catch (e) {
+      setSendStatus((s) => ({ ...s, [name]: `error:${e.message}` }));
+      setNotification(`Send error: ${e.message}`);
+      setTimeout(() => setNotification(""), 3000);
+    }
+  };
+
+  return (
+    <div className="fpm-container">
+      {notification && (
+        <div className="fpm-notification">{notification}</div>
+      )}
+
+      <div className="fpm-header">
+        <div>
+          <h1 className="fpm-title">File Path Management</h1>
+          <p className="fpm-subtitle">Send incoming files to their mapped report folders</p>
+        </div>
+        {/* Configuration modal removed for this demo flow */}
+      </div>
+
+      <input
+        type="text"
+        placeholder="Search by report name (filename after prefix)..."
+        className="fpm-search-input"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
+
+      <table className="fpm-table">
+        <thead>
+          <tr>
+            <th>Report Name</th>
+            <th>Source Path</th>
+            <th>Output Path</th>
+            <th>Actions</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {paginatedConfigs.length === 0 ? (
+            <tr>
+              <td colSpan="5" className="fpm-no-data">
+                No incoming files found
+              </td>
+            </tr>
+          ) : (
+            paginatedConfigs.map((f) => {
+              const st = sendStatus[f.name] || "idle";
+              const isSending = st === "sending";
+              const isSuccess = st === "success";
+              const isError = st.startsWith && st.startsWith("error:");
+              return (
+                <tr key={f.name}>
+                  <td className="fpm-bold">{f.displayName || f.name}</td>
+                  <td className="fpm-path">{f.sourcePath}</td>
+                  <td className="fpm-path">{f.outputPath}</td>
+                  <td>
+                    <button
+                      className={`fpm-btn-primary ${isSuccess ? 'fpm-btn-success' : ''}`}
+                      disabled={isSending || isSuccess}
+                      onClick={() => sendOne(f.name)}
+                    >
+                      {isSuccess ? 'Sent' : 'Send'}
+                    </button>
+                  </td>
+                  <td>
+                    {isSuccess ? (
+                      <span className="fpm-badge active">ACTIVE</span>
+                    ) : (
+                      <span className="fpm-badge inactive">INACTIVE</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+
+      <div className="fpm-pagination">
+        <button
+          className="fpm-page-btn"
+          disabled={currentPageSafe === 1}
+          onClick={() => setCurrentPage(Math.max(1, currentPageSafe - 1))}
+        >
+          Previous
+        </button>
+
+        <div className="fpm-page-list">
+          {(() => {
+            const buttons = [];
+            const maxButtons = 7;
+            if (totalPages <= maxButtons) {
+              for (let p = 1; p <= totalPages; p++) {
+                buttons.push(
+                  <button
+                    key={p}
+                    className={`fpm-page-number ${p === currentPageSafe ? "active" : ""}`}
+                    onClick={() => setCurrentPage(p)}
+                  >
+                    {p}
+                  </button>
+                );
+              }
+            } else {
+              const pages = new Set([1, 2, totalPages - 1, totalPages, currentPageSafe - 1, currentPageSafe, currentPageSafe + 1]);
+              const normalized = [...pages].filter(p => p >= 1 && p <= totalPages).sort((a,b) => a - b);
+              let prev = 0;
+              for (const p of normalized) {
+                if (p - prev > 1 && prev !== 0) {
+                  buttons.push(<span key={`ellipsis-${p}`} className="fpm-page-ellipsis">…</span>);
+                }
+                buttons.push(
+                  <button
+                    key={p}
+                    className={`fpm-page-number ${p === currentPageSafe ? "active" : ""}`}
+                    onClick={() => setCurrentPage(p)}
+                  >
+                    {p}
+                  </button>
+                );
+                prev = p;
+              }
+            }
+            return buttons;
+          })()}
+        </div>
+
+        <button
+          className="fpm-page-btn"
+          disabled={currentPageSafe === totalPages}
+          onClick={() => setCurrentPage(Math.min(totalPages, currentPageSafe + 1))}
+        >
+          Next
+        </button>
+
+        <div className="fpm-page-info">
+          Page {currentPageSafe} of {totalPages} • {totalItems} items
+        </div>
+      </div>
+
+      {/* Modals for CRUD removed in this demo */}
+    </div>
+  );
+};
