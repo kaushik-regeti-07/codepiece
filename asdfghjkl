@@ -1,0 +1,820 @@
+
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+    LogOut,
+    RefreshCw,
+    Database,
+    AlertCircle,
+    FileText,
+    Shield,
+    Calendar,
+    Bell,
+    X,
+    Search,
+    Download,
+    ChevronLeft,
+    ChevronRight,
+    FileArchive,
+    FileSpreadsheet,
+    File as FileGeneric,
+} from 'lucide-react';
+import './OpsDashboard.css';
+
+/** ---------- Small style helpers (unchanged) ---------- */
+const S = {
+    card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12 },
+    pad: { padding: 20 },
+    row: (jc = 'space-between', ai = 'center', gap = 12) => ({
+        display: 'flex',
+        justifyContent: jc,
+        alignItems: ai,
+        gap,
+    }),
+    btn: ({ primary } = {}) => ({
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 18px',
+        borderRadius: 8,
+        border: primary ? 'none' : '1px solid #e5e7eb',
+        background: primary ? '#0473EA' : '#fff',
+        color: primary ? '#fff' : '#333',
+        cursor: 'pointer',
+        fontWeight: 600,
+        fontSize: 14,
+    }),
+    tinyBtn: (danger = false) => ({
+        padding: '6px 12px',
+        borderRadius: 6,
+        border: '1px solid #e5e7eb',
+        background: '#fff',
+        color: danger ? '#dc2626' : '#333',
+        cursor: 'pointer',
+        fontSize: 13,
+        fontWeight: 600,
+    }),
+    badge: {
+        base: { padding: '6px 14px', borderRadius: 16, fontSize: 12, fontWeight: 500, border: '1px solid' },
+        completed: { background: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' },
+        'in-progress': { background: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' },
+        failed: { background: '#fee2e2', color: '#991b1b', borderColor: '#fecaca' },
+        pending: { background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' },
+        validating: { background: '#e0e7ff', color: '#3730a3', borderColor: '#c7d2fe' },
+    },
+};
+
+const Badge = ({ status }) => (
+    <span style={{ ...S.badge.base, ...(S.badge[status] || S.badge.pending) }}>{status}</span>
+);
+
+const ProgressBar = ({ value, status }) => (
+    <div className="progress-bar-bg">
+        <div
+            className="progress-bar-fill"
+            style={{
+                width: `${value}%`,
+                background: status === 'failed' ? '#dc2626' : status === 'in-progress' ? '#0473EA' : '#10b981',
+            }}
+        />
+    </div>
+);
+
+const Head = ({ title, subtitle, right }) => (
+    <div style={{ ...S.pad, borderBottom: '1px solid #e5e7eb', ...S.row() }}>
+        <div>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '4px 0 0', fontSize: 14, color: '#6b7280' }}>{subtitle}</p>}
+        </div>
+        {right}
+    </div>
+);
+
+const Tabs = ({ tabs, active, onChange }) => (
+    <div style={{ marginBottom: 24, borderBottom: '2px solid #e5e7eb' }}>
+        <div style={S.row('flex-start', 'center', 8)}>
+            {tabs.map((t) => (
+                <button
+                    key={t.id}
+                    onClick={() => onChange(t.id)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '12px 20px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: active === t.id ? '#0473EA' : '#6b7280',
+                        cursor: 'pointer',
+                        fontWeight: active === t.id ? 600 : 500,
+                        fontSize: 14,
+                        borderBottom: active === t.id ? '3px solid #0473EA' : '3px solid transparent',
+                        marginBottom: '-2px',
+                        transition: 'all 0.2s',
+                    }}
+                >
+                    {t.icon}
+                    {t.label}
+                </button>
+            ))}
+        </div>
+    </div>
+);
+
+/** ---------- Demo data (can be replaced with API hooks) ---------- */
+// Backend-driven storage list (replaces ALL_REPORTS for demo)
+const ALL_REPORTS = [];
+
+const STORAGE = [
+    { id: 1, name: 'AWS S3', organization: 'Finance Dept', status: 'active', latency: '40ms', lastJob: 'Success', lastSync: '2 mins ago', reports: 12 },
+    { id: 2, name: 'Azure Blob', organization: 'Risk Management', status: 'active', latency: '60ms', lastJob: 'Success', lastSync: '5 mins ago', reports: 8 },
+    { id: 3, name: 'Google Cloud', organization: 'Operations', status: 'syncing', latency: 'Running', lastJob: 'Running', lastSync: 'Running', reports: 15 },
+];
+
+// Replace the original SYNC_JOBS with this file-based version
+const SYNC_JOBS = [
+    { id: 1, file: 'Q4_Financial_Report.pdf', status: 'completed', progress: 100, files: 12, time: '2 mins ago' },
+    { id: 2, file: 'Operations_Summary.pdf', status: 'in-progress', progress: 67, files: 8, time: 'Running' },
+    { id: 3, file: 'Risk_Assessment_2024.xlsx', status: 'pending', progress: 0, files: 15, time: 'Scheduled' },
+    { id: 4, file: 'Monthly_Review_Timing.txt', status: 'failed', progress: 45, files: 5, time: '10 mins ago' },
+];
+
+const VALIDATION_QUEUE = [
+    { id: 1, name: 'Q4_Financial_Report.pdf', organization: 'Finance', source: 'AWS S3', size: '2.4 MB', uploaded: '10 Oct, 11:32', status: 'validating', format: 'PDF', integrity: 'Pass' },
+    { id: 2, name: 'Risk_Assessment_2024.xlsx', organization: 'Risk', source: 'Azure Blob', size: '856 KB', uploaded: '10 Oct, 10:21', status: 'pending', format: 'Excel', integrity: 'Checking' },
+    { id: 3, name: 'Operations_Summary.pdf', organization: 'Operations', source: 'Google Cloud', size: '1.8 MB', uploaded: '10 Oct, 10:02', status: 'validating', format: 'PDF', integrity: 'Pass' },
+];
+
+const PUBLISHED = [
+    { id: 1, name: 'Q4_Financial_Report.pdf', organization: 'Finance', publishedAt: '10 Oct, 11:32', version: 'v1.0', subscribers: 45, notifications: 'Sent', downloads: 38, type: 'PDF', folder: 'Compliance' },
+    { id: 2, name: 'Risk_Assessment_2024.xlsx', organization: 'Risk', publishedAt: '10 Oct, 10:21', version: 'v1.2', subscribers: 32, notifications: 'Sent', downloads: 28, type: 'Excel', folder: 'Credit Risk' },
+    { id: 3, name: 'Operations_Summary.pdf', organization: 'Operations', publishedAt: '10 Oct, 10:02', version: 'v1.0', subscribers: 28, notifications: 'Pending', downloads: 0, type: 'PDF', folder: 'General' },
+];
+
+/** AD access map (US04) */
+const AD_GROUPS = [
+    { group: 'Wealth Compliance', allows: { folders: ['Compliance'], reports: ['KYC', 'Dormant', 'AML'] } },
+    { group: 'Wealth User Admin', allows: { folders: ['Global User', 'General', 'Credit Risk', 'Compliance'] } },
+];
+
+function iconForType(type) {
+    switch (type) {
+        case 'PDF':
+            return <FileText style={{ width: 16, height: 16 }} />;
+        case 'Excel':
+            return <FileSpreadsheet style={{ width: 16, height: 16 }} />;
+        case 'ZIP':
+            return <FileArchive style={{ width: 16, height: 16 }} />;
+        case 'TXT':
+        default:
+            return <FileGeneric style={{ width: 16, height: 16 }} />;
+    }
+}
+
+/** ======================================================
+ *                     MAIN COMPONENT
+ *  ====================================================== */
+const OpsDashboard = ({ navigate }) => {
+    const user = { name: 'Ramesh', role: 'operations', adGroups: ['Wealth Compliance', 'Wealth User Admin'] };
+    const logout = () => navigate('landing');
+
+    const [activeTab, setActiveTab] = useState('published');
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+
+    // Notifications (US05)
+    const [notifOpen, setNotifOpen] = useState(false);
+    const [notifications, setNotifications] = useState([
+        { id: 'n1', title: 'New: Q4_Financial_Report.pdf', reportId: 'r1', time: '2m ago', unread: true },
+        { id: 'n2', title: 'Risk_Assessment_2024.xlsx published', reportId: 'r2', time: '10m ago', unread: false },
+    ]);
+
+    // Notification helpers (Admin-style UI, renamed to .notification-*)
+    const unreadCount = notifications.filter((n) => n.unread).length;
+
+    const markAsRead = (id) => {
+        setNotifications((arr) => arr.map((n) => (n.id === id ? { ...n, unread: false } : n)));
+    };
+
+    const markAllAsRead = () => {
+        setNotifications((arr) => arr.map((n) => ({ ...n, unread: false })));
+    };
+
+    const removeNotification = (id) => {
+        setNotifications((arr) => arr.filter((n) => n.id !== id));
+    };
+
+    // Report Search & Filters (US05, US06)
+    const [reportQuery, setReportQuery] = useState('');
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
+    const [reportType, setReportType] = useState('All');
+    const [folderFilter, setFolderFilter] = useState('All');
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 10;
+
+    // Favourites & Recently Viewed (slide 8)
+    const [recentlyViewed, setRecentlyViewed] = useState(['r2', 'r3']);
+
+    // Storage / Sync / Validation data
+    const [storageConnections] = useState(STORAGE);
+    const [syncJobs, setSyncJobs] = useState(SYNC_JOBS);
+    const [publishedReports, setPublishedReports] = useState(PUBLISHED);
+    const [storageFiles, setStorageFiles] = useState([]); // {name,size,modified}
+    const [importStatus, setImportStatus] = useState({}); // { [name]: 'idle'|'importing'|'success'|'error:msg' }
+    const [importedRows, setImportedRows] = useState({}); // persist imported files locally by name -> {name,size,modified}
+    const IMPORTED_ROWS_KEY = 'ops_imported_rows_v1';
+
+    // Access control (US04) → compute allowed folders
+    const allowedFolders = useMemo(() => {
+        const g = AD_GROUPS.filter((g) => user.adGroups.includes(g.group));
+        const sets = new Set();
+        g.forEach((x) => x.allows.folders.forEach((f) => sets.add(f)));
+        return sets;
+    }, [user.adGroups]);
+
+    // Search domain = published + (optionally) all reports
+    // Map storage files to table rows
+    const extType = (name) => {
+        const n = (name || '').toLowerCase();
+        if (n.endsWith('.pdf')) return 'PDF';
+        if (n.endsWith('.xlsx') || n.endsWith('.xls')) return 'Excel';
+        if (n.endsWith('.zip')) return 'ZIP';
+        return 'TXT';
+    };
+
+    // Merge backend storage files with locally persisted imported rows so imported items remain visible
+    const mergedStorage = useMemo(() => {
+        const map = new Map();
+        for (const f of storageFiles) if (f && f.name) map.set(f.name, f);
+        for (const f of Object.values(importedRows)) if (f && f.name && !map.has(f.name)) map.set(f.name, f);
+        return Array.from(map.values());
+    }, [storageFiles, importedRows]);
+
+    const reportsDomain = useMemo(() => {
+        return mergedStorage.map((f, i) => ({
+            id: `s-${i}-${f.name}`,
+            name: f.name,
+            type: extType(f.name),
+            date: f.modified ? new Date(f.modified).toISOString() : new Date().toISOString(),
+            folder: 'Storage',
+        }));
+    }, [mergedStorage]);
+
+    const filteredReports = useMemo(() => {
+        let rows = reportsDomain;
+
+        if (reportQuery.trim()) {
+            const q = reportQuery.toLowerCase();
+            rows = rows.filter((r) => r.name.toLowerCase().includes(q));
+        }
+        if (reportType !== 'All') {
+            rows = rows.filter((r) => r.type === reportType);
+        }
+        if (folderFilter !== 'All') {
+            rows = rows.filter((r) => r.folder === folderFilter);
+        }
+        if (fromDate) {
+            rows = rows.filter((r) => new Date(r.date) >= new Date(fromDate));
+        }
+        if (toDate) {
+            const end = new Date(toDate);
+            end.setHours(23, 59, 59, 999);
+            rows = rows.filter((r) => new Date(r.date) <= end);
+        }
+        return rows.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [reportsDomain, reportQuery, reportType, folderFilter, fromDate, toDate]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredReports.length / PAGE_SIZE));
+    useEffect(() => {
+        if (page > totalPages) setPage(1);
+    }, [totalPages, page]);
+
+    const pagedReports = filteredReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+    // Fetch storage list periodically
+    useEffect(() => {
+        const fetchStorage = async () => {
+            try {
+                const res = await fetch('http://localhost:8080/api/ops/storage');
+                const data = await res.json();
+                setStorageFiles(Array.isArray(data) ? data : []);
+            } catch (e) {
+                // ignore for demo
+            }
+        };
+        fetchStorage();
+        const id = setInterval(fetchStorage, 5000);
+        return () => clearInterval(id);
+    }, []);
+
+    // Restore imported rows from localStorage on first mount
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(IMPORTED_ROWS_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                    setImportedRows(parsed);
+                    const successMap = Object.keys(parsed).reduce((acc, n) => { acc[n] = 'success'; return acc; }, {});
+                    setImportStatus((prev) => ({ ...successMap, ...prev }));
+                }
+            }
+        } catch {}
+    }, []);
+
+    // Persist imported rows to localStorage whenever they change
+    useEffect(() => {
+        try {
+            localStorage.setItem(IMPORTED_ROWS_KEY, JSON.stringify(importedRows));
+        } catch {}
+    }, [importedRows]);
+
+    const importOne = async (row) => {
+        const name = row.name;
+        setImportStatus((s) => ({ ...s, [name]: 'importing' }));
+        try {
+            const res = await fetch(`http://localhost:8080/api/ops/import-storage?fileName=${encodeURIComponent(name)}`, { method: 'POST' });
+            const data = await res.json();
+            if (data && data.imported) {
+                setImportStatus((s) => ({ ...s, [name]: 'success' }));
+                // Persist this row so it remains visible after backend removes it from storage
+                setImportedRows((rows) => ({
+                    ...rows,
+                    [name]: {
+                        name,
+                        size: row.size || 0,
+                        modified: row.modified || Date.now(),
+                    },
+                }));
+            } else {
+                const reason = data && data.reason ? data.reason : 'failed';
+                setImportStatus((s) => ({ ...s, [name]: `error:${reason}` }));
+            }
+        } catch (e) {
+            setImportStatus((s) => ({ ...s, [name]: `error:${e.message}` }));
+        }
+    };
+
+    // Multi-select & batch download (US06)
+    const [selectedIds, setSelectedIds] = useState([]);
+    const toggleSelect = (id) =>
+        setSelectedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+    const selectAllPage = () => setSelectedIds(pagedReports.map((r) => r.id));
+    const clearSelection = () => setSelectedIds([]);
+
+    const batchDownload = () => {
+        // Simulate: in real app, request ZIP for selected items & dates (US06)
+        alert(`Importing ${selectedIds.length} report(s) as ZIP...`);
+        clearSelection();
+    };
+
+    const markViewed = (id) => {
+        setRecentlyViewed((cur) => [id, ...cur.filter((x) => x !== id)].slice(0, 8));
+    };
+
+    const failedOperations = syncJobs.filter((j) => j.status === 'failed');
+
+    const tabs = [
+        { id: 'published', label: 'Published Reports', icon: <FileText style={{ width: 16, height: 16 }} /> },
+        { id: 'sync', label: 'Sync Operations', icon: <RefreshCw style={{ width: 16, height: 16 }} /> },
+        // { id: 'monitoring', label: 'Remote Monitoring', icon: <Database style={{ width: 16, height: 16 }} /> }, // temporarily disabled
+    ];
+
+    /** ---------- helpers for UI ---------- */
+    const notifUnread = notifications.filter((n) => n.unread).length;
+    const openReportFromNotif = (n) => {
+        setActiveTab('published');
+        setReportQuery(n.title.replace('New: ', '').split(' ').join('_').toLowerCase());
+        setNotifications((arr) => arr.map((x) => (x.id === n.id ? { ...x, unread: false } : x)));
+        setNotifOpen(false);
+    };
+
+    return (
+        <div className="dash">
+            {/* Sidebar (unchanged structure) */}
+            <div className={`side ${sidebarOpen ? 'open' : ''}`}>
+                <div className="side-head">
+                    <span className="logo-icon"></span>
+                    <div>
+                        <h2>RW Tool</h2>
+                        <p>Operations Panel</p>
+                    </div>
+                </div>
+                <div className="side-nav">
+                    <p className="nav-label">Operations</p>
+                    {tabs.map((t) => (
+                        <button key={t.id} onClick={() => setActiveTab(t.id)} className={`nav-btn ${activeTab === t.id ? 'active' : ''}`}>
+                            <span>{t.icon}</span>
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Main */}
+            <div className="main">
+                <div className="top">
+                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="menu">☰</button>
+                    <div className="actions">
+                        {/* Admin-style dropdown UI, renamed to .notification-* */}
+                        <div className="notification-container">
+                            <button
+                                type="button"
+                                className="notification-trigger"
+                                aria-label="Notifications"
+                                onClick={() => setNotifOpen(!notifOpen)}
+                            >
+                                <Bell size={20} />
+                                {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+                            </button>
+
+                            {notifOpen && (
+                                <div className="notification-dropdown">
+                                    <div className="notification-header">
+                                        <h5 className="notification-title">Notifications</h5>
+                                        {unreadCount > 0 && (
+                                            <button className="notification-mark-all" onClick={markAllAsRead}>
+                                                Mark all read
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="notification-list">
+                                        {notifications.length === 0 ? (
+                                            <div className="notification-empty">
+                                                <Bell size={40} />
+                                                <p>No notifications</p>
+                                            </div>
+                                        ) : (
+                                            notifications.map((n) => (
+                                                <div
+                                                    key={n.id}
+                                                    className={`notification-item ${n.unread ? 'unread' : ''}`}
+                                                    onClick={() => {
+                                                        markAsRead(n.id);
+                                                        openReportFromNotif(n);
+                                                    }}
+                                                >
+                                                    {/* Simple type chip — use 'file' for titles mentioning file/published; else 'subscription' */}
+                                                    <div
+                                                        className={`notification-icon ${n.title.toLowerCase().includes('published') || n.title.toLowerCase().includes('file')
+                                                            ? 'file'
+                                                            : 'subscription'
+                                                            }`}
+                                                    >
+                                                        <FileText size={18} />
+                                                    </div>
+
+                                                    <div className="notification-content">
+                                                        <h6>{n.title}</h6>
+                                                        <p>{n.reportId ? `Open report ${n.reportId}` : 'View details'}</p>
+                                                        <span className="notification-time">{n.time}</span>
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        className="notification-close"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            removeNotification(n.id);
+                                                        }}
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {notifications.length > 0 && (
+                                        <div className="notification-footer">
+                                            <a href="#" className="notification-view-all">View All Activity</a>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* keep your logout button as-is */}
+                        <button onClick={logout} className="logout-btn">
+                            <LogOut style={{ width: 16, height: 16 }} /> Logout
+                        </button>
+                    </div>
+
+                </div>
+
+                <div className="content">
+                    {/* Header */}
+                    <div style={{ marginBottom: 24, ...S.row('space-between', 'flex-start') }}>
+                        <div>
+                            <h2 style={{ margin: '0 0 4px', fontSize: 28, fontWeight: 700, color: '#0473EA' }}>Operations Dashboard</h2>
+                            <p style={{ margin: 0, color: '#6b7280', fontSize: 15 }}>Bridge between remote storage & RW Tool</p>
+                        </div>
+                        <div style={S.row('flex-start')}>
+                            <button style={S.btn()}> <Calendar style={{ width: 16, height: 16 }} /> Schedule Sync</button>
+                            <button style={S.btn({ primary: true })}> <RefreshCw style={{ width: 16, height: 16 }} /> Sync All</button>
+                        </div>
+                    </div>
+
+                    {/* KPI — same size, 5 across, with Admin-style hover effects, keeping your icon colors */}
+                    <div className="kpi-grid">
+                        {/* Active Connections */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Active Connections</p>
+                                <span className="kpi-icon">
+                                    <Database style={{ width: 20, height: 20, color: '#0473EA' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">{STORAGE.filter((s) => s.status === 'active').length}</h2>
+
+                        </div>
+
+                        {/* Pending Validation */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Pending Validation</p>
+                                <span className="kpi-icon">
+                                    <Shield style={{ width: 20, height: 20, color: '#f59e0b' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">{VALIDATION_QUEUE.length}</h2>
+
+                        </div>
+
+                        {/* Sync Jobs Today */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Sync Jobs Today</p>
+                                <span className="kpi-icon">
+                                    <RefreshCw style={{ width: 20, height: 20, color: '#10b981' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">48</h2>
+
+                        </div>
+
+                        {/* Published Reports */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Published Reports</p>
+                                <span className="kpi-icon">
+                                    <FileText style={{ width: 20, height: 20, color: '#8b5cf6' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">{PUBLISHED.length}</h2>
+
+                        </div>
+
+                        {/* Failed Operations */}
+                        <div className="kpi-card" role="button" tabIndex={0}>
+                            <div className="kpi-top">
+                                <p className="kpi-label">Failed Operations</p>
+                                <span className="kpi-icon">
+                                    <AlertCircle style={{ width: 20, height: 20, color: '#dc2626' }} />
+                                </span>
+                            </div>
+                            <h2 className="kpi-value">{SYNC_JOBS.filter((j) => j.status === 'failed').length}</h2>
+
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+
+                    {/* Remote Monitoring */}
+                    {/* {activeTab === 'monitoring' && (
+                        <div style={S.card}>
+                            <Head title="Remote Monitoring" subtitle="Monitor data source latency and sync condition" />
+                            <div style={S.pad}>
+                                {storageConnections.map((c) => (
+                                    <div key={c.id} style={{ ...S.card, borderColor: '#e5e7eb', borderRadius: 10, padding: 16, marginBottom: 16, ...S.row() }}>
+                                        <div style={S.row('flex-start')}>
+                                            <div className="icon-48"><Database style={{ width: 24, height: 24, color: '#0473EA' }} /></div>
+                                            <div>
+                                                <p className="title-16">{c.name}</p>
+                                                <p className="muted-13">{c.organization} • {c.reports} reports • Latency: {c.latency} • Last Job: {c.lastJob} • Last sync: {c.lastSync}</p>
+                                            </div>
+                                        </div>
+                                        <div style={S.row()}>
+                                            <Pill ok={c.status === 'active'}>{c.status === 'active' ? 'Active' : 'Syncing'}</Pill>
+                                            <button style={S.tinyBtn()}>Check Health</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                <button style={{ ...S.btn({ primary: true }), marginTop: 12 }}>
+                                    <PlusCircle style={{ width: 16, height: 16 }} /> Add Connection
+                                </button>
+                            </div>
+                        </div>
+                    )} */}
+
+                    {/* Sync Operations */}
+                    {activeTab === 'sync' && (
+                        <div>
+                            {failedOperations.length > 0 && (
+                                <div style={{ ...S.card, background: '#fef2f2', borderColor: '#fecaca', marginBottom: 24, ...S.pad }}>
+                                    <div style={{ ...S.row(), marginBottom: 16 }}>
+                                        <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#991b1b' }}>{failedOperations.length} failed operation(s)</p>
+                                        <button style={S.tinyBtn(true)}>Retry all failed</button>
+                                    </div>
+                                    {failedOperations.length > 0 && (
+                                        <div style={{ ...S.card, background: '#fef2f2', borderColor: '#fecaca', marginBottom: 24, ...S.pad }}>
+                                            <div style={{ ...S.row(), marginBottom: 16 }}>
+                                                <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#991b1b' }}>
+                                                    {failedOperations.length} failed operation(s)
+                                                </p>
+                                                <button style={S.tinyBtn(true)}>Retry all failed</button>
+                                            </div>
+                                            {failedOperations.map((op) => (
+                                                <div key={op.id} className="failed-op">
+                                                    <div>
+                                                        <p className="title-15">{op.file}</p>
+                                                        <p className="muted-13">{op.files} files · {op.time}</p>
+                                                    </div>
+                                                    <div style={S.row()}>
+                                                        <Badge status="failed" />
+                                                        <button style={S.tinyBtn()}>Retry</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                </div>
+                            )}
+
+                            <div style={S.card}>
+                                <Head title="Sync Operations" subtitle="Fetch and transfer reports from remote sources" />
+                                <div style={S.pad}>
+                                    {syncJobs.map((j) => (
+                                        <div key={j.id} style={{ marginBottom: 20 }}>
+                                            <div style={{ ...S.row(), marginBottom: 8 }}>
+                                                <div>
+                                                    <p className="title-15">{j.file}</p>
+                                                    <p className="muted-13">{j.files} files · {j.time}</p>
+                                                </div>
+                                                <div style={S.row()}>
+                                                    <Badge status={j.status} />
+                                                    {j.status === 'in-progress' && <button style={S.tinyBtn()}>Pause</button>}
+                                                    {j.status === 'failed' && <button style={S.tinyBtn()}>Retry</button>}
+                                                </div>
+                                            </div>
+                                            {j.status !== 'pending' && <ProgressBar value={j.progress} status={j.status} />}
+                                        </div>
+                                    ))}
+
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Published Reports — search, filters, listing, favourites, recently viewed, batch download */}
+                    {activeTab === 'published' && (
+                        <div className="pub-full">
+                            <div className="pub-main" style={S.card}>
+                                <Head
+                                    title="Published Reports"
+                                    subtitle="Search, filter, and download reports"
+                                    right={
+                                        <div className="toolbar">
+                                            <div className="search">
+                                                <Search size={16} />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search reports by name..."
+                                                    value={reportQuery}
+                                                    onChange={(e) => setReportQuery(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="filters">
+                                                <FileText size={14} />
+                                                <select value={reportType} onChange={(e) => setReportType(e.target.value)}>
+                                                    <option>All</option>
+                                                    <option>PDF</option>
+                                                    <option>Excel</option>
+                                                    <option>TXT</option>
+                                                </select>
+
+                                                <Calendar size={14} />
+                                                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                                                <span className="sep">to</span>
+                                                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+                                            </div>
+                                        </div>
+                                    }
+                                />
+
+                                <div className="pub-wrap">
+                                    <table className="pub-table">
+
+                                        <thead>
+                                            <tr>
+                                                <th className="col-select" style={{ width: 36, padding: 0 }}>
+                                                    <div className="chk-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            onChange={(e) => (e.target.checked ? selectAllPage() : clearSelection())}
+                                                        />
+                                                    </div>
+                                                </th>
+
+                                                <th className="col-no">No.</th>
+                                                <th className="col-report" style={{ width: '40%', paddingRight: 6 }}>Report</th>
+
+                                                <th className="col-type">Type</th>
+                                                <th className="col-date">Date</th>
+                                                <th className="col-date">Status</th>
+                                                <th className="col-actions">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {pagedReports.map((r, idx) => {
+                                                const st = importStatus[r.name] || 'idle';
+                                                const isImporting = st === 'importing';
+                                                const isSuccess = st === 'success';
+                                                const isError = st.startsWith && st.startsWith('error:');
+                                                return (
+                                                <tr key={r.id} onClick={() => markViewed(r.id)}>
+                                                    <td className="col-select" style={{ width: 36, padding: 0 }}>
+                                                        <div className="chk-center">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedIds.includes(r.id)}
+                                                                onChange={() => toggleSelect(r.id)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="col-no">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                                                    <td className="report-cell col-report" style={{ width: '50%', paddingRight: 6 }}>
+
+                                                        <span className="type-icon">{iconForType(r.type)}</span>
+                                                        <span className="report-name">{r.name}</span>
+                                                    </td>
+
+                                                    <td className="muted-td col-type">{r.type}</td>
+                                                    <td className="muted-td col-date">{new Date(r.date).toLocaleString()}</td>
+                                                    <td className="muted-td">
+                                                        {isSuccess && <span className="status-badge success">Success</span>}
+                                                        {isError && <span className="status-badge failure">Failure</span>}
+                                                        {isImporting && <span className="status-badge">Importing…</span>}
+                                                        {!isImporting && !isSuccess && !isError && <span className="status-badge">Pending</span>}
+                                                    </td>
+                                                    <td className="row-8 col-actions">
+                                                        <button
+                                                            className={`approve-btn ${isSuccess ? 'success' : ''}`}
+                                                            disabled={isImporting || isSuccess}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (!isSuccess) importOne(r);
+                                                            }}
+                                                        >
+                                                            {isSuccess ? 'Imported' : (<><Download size={14} /> Import</>)}
+                                                        </button>
+                                                    </td>
+
+                                                </tr>
+                                            )})}
+                                            {pagedReports.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={7} className="muted-td">No reports found.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+
+                                    </table>
+                                </div>
+
+                                <div className="pub-footer">
+                                    <div className="row-8">
+                                        <button className="approve-btn" disabled={!selectedIds.length} onClick={batchDownload}>
+                                            <Download size={14} /> Import selected (ZIP)
+                                        </button>
+                                        {selectedIds.length > 0 && (
+                                            <button className="reject-btn" onClick={clearSelection}>Clear selection</button>
+                                        )}
+                                    </div>
+                                    <div className="pager">
+                                        <button className="tiny-icon-btn" onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        <span>Page {page} / {totalPages}</span>
+                                        <button className="tiny-icon-btn" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default OpsDashboard;
