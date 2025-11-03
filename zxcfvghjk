@@ -4,12 +4,10 @@ import DownloadReportComponent from '../DownloadReport/DownloadReportComponent';
 import SubscriptionDashboard from '../SubscriptionStatusPage/SubsciptionDashboard';
 import SubscriberNotification from '../SubscriberNotification/SubscriberNotification';
 import SubscriberProfile from '../Profile/SubscriberProfile';
-import { LogOut } from 'lucide-react';
 import '../../AdminPage/AdminDashBoard/Dashboard.css';
 import './SubscriberDashboard.css';
 import subscriptionService from '../../../services/subscriptionService';
-import folderService from '../../../services/folderService';
-import sessionService from '../../../services/sessionService';
+import folderService from '../../../services/folderservice';
 
 const SubscriberDashboard = ({ navigate: navigateToPage }) => {
     const [view, setView] = useState('dashboard');
@@ -19,26 +17,52 @@ const SubscriberDashboard = ({ navigate: navigateToPage }) => {
     const [rawFiles, setRawFiles] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    useEffect(() => {
+        // Load Bootstrap Icons
+        const loadBootstrapIcons = () => {
+            if (!document.querySelector('link[href*="bootstrap-icons"]')) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css';
+                document.head.appendChild(link);
+            }
+        };
+        
+        loadBootstrapIcons();
+    }, []);
+
     const logout = () => {
-        try { sessionService.clear(); } catch {}
-        setSubscriptions([]);
-        setReports([]);
-        setRawFiles([]);
         navigateToPage('landing');
     };
-
-    const user = { name: 'Tony Stark', email: 'tony3000@stark.com', role: 'Subscriber' };
-    const [currentEmail, setCurrentEmail] = useState(() => sessionService.getEmail() || user.email);
+    // Resolve authenticated user identity strictly from JWT to avoid stale localStorage fields
+    const resolveAuth = () => {
+        const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token'))
+            || (typeof localStorage !== 'undefined' && localStorage.getItem('token'))
+            || null;
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                return {
+                    email: payload.email || payload.sub || '',
+                    name: payload.name || 'Subscriber'
+                };
+            } catch (_) {
+                return { email: '', name: 'Subscriber' };
+            }
+        }
+        return { email: '', name: 'Subscriber' };
+    };
+    const user = resolveAuth();
     
     useEffect(() => {
         const load = async () => {
             try {
                 setLoading(true);
                 // fetch subscriptions for user
-                const subs = await subscriptionService.getRequestsByUser(currentEmail);
+                const subs = user.email ? await subscriptionService.getRequestsByUser(user.email) : [];
                 setSubscriptions(Array.isArray(subs) ? subs : (subs.subscriptions || []));
                 // fetch accessible files for user
-                const files = await folderService.getUserAccessibleFiles(currentEmail);
+                const files = user.email ? await folderService.getUserAccessibleFiles(user.email) : [];
                 setRawFiles(Array.isArray(files) ? files : []);
                 // normalize to match DownloadReportComponent display: remove prefix before underscore and extension
                 const normalized = (files || []).map((f, idx) => {
@@ -65,7 +89,7 @@ const SubscriberDashboard = ({ navigate: navigateToPage }) => {
         load();
         const t = setInterval(load, 15000);
         return () => clearInterval(t);
-    }, [currentEmail]);
+    }, []);
 
     const approvedDomains = subscriptions
         .filter(s => (s.status || '').toUpperCase() === 'APPROVED')
@@ -74,28 +98,48 @@ const SubscriberDashboard = ({ navigate: navigateToPage }) => {
     const filteredReports = reports.filter(r => approvedDomains.includes(r.domain));
 
     const nav = [
-        { name: 'Dashboard', view: 'dashboard' },
-        { name: 'My Subscriptions', view: 'subscriptions' },
-        { name: 'Request Subscription', view: 'request' },
-        { name: 'Download Reports', view: 'downloads' },
-        { name: 'Profile', view: 'profile' }
+        { name: 'Dashboard', view: 'dashboard', icon: 'bi-speedometer2' },
+        { name: 'My Subscriptions', view: 'subscriptions', icon: 'bi-journal-check' },
+        { name: 'Request Subscription', view: 'request', icon: 'bi-plus-circle' },
+        { name: 'Download Reports', view: 'downloads', icon: 'bi-download' },
+        { name: 'Profile', view: 'profile', icon: 'bi-person' }
     ];
 
     const renderContent = () => {
         if (view === 'subscriptions') return <SubscriptionDashboard subscriptions={subscriptions} />;
         if (view === 'request') return <SubscriptionRequestComponent subscriptions={subscriptions} />;
         if (view === 'downloads') return <DownloadReportComponent reports={reports} subscriptions={subscriptions} />;
-        if (view === 'profile') return <SubscriberProfile userEmail={currentEmail} />;
+        if (view === 'profile') return <SubscriberProfile userEmail={user.email} initialName={user.name} />;
 
         return (
             <>
                 <h1>Dashboard</h1>
-                <p className="subtitle">Welcome back, {user.name}</p>
+                <p className="subtitle">Welcome back. Here is your dashboard overview.</p>
                 <div className="stats">
-                    <div className="card"><div><p className="label">Active Subscriptions</p><h2>{approvedDomains.length}</h2></div></div>
-                    <div className="card"><div><p className="label">Pending Requests</p><h2>{subscriptions.filter(s => s.status === 'PENDING').length}</h2></div></div>
-                    <div className="card"><div><p className="label">Available Reports</p><h2>{reports.length}</h2></div></div>
-                    <div className="card"><div><p className="label">Rejected Requests</p><h2>{subscriptions.filter(s => s.status === 'REJECTED').length}</h2></div></div>
+                    <div className="card">
+                        <div>
+                            <p className="label"><i className="bi bi-check-circle-fill" style={{ color: '#10B981', marginRight: '8px' }}></i>Active Subscriptions</p>
+                            <h2>{approvedDomains.length}</h2>
+                        </div>
+                    </div>
+                    <div className="card">
+                        <div>
+                            <p className="label"><i className="bi bi-clock-fill" style={{ color: '#F59E0B', marginRight: '8px' }}></i>Pending Requests</p>
+                            <h2>{subscriptions.filter(s => s.status === 'PENDING').length}</h2>
+                        </div>
+                    </div>
+                    <div className="card">
+                        <div>
+                            <p className="label"><i className="bi bi-file-earmark-text-fill" style={{ color: '#3B82F6', marginRight: '8px' }}></i>Available Reports</p>
+                            <h2>{reports.length}</h2>
+                        </div>
+                    </div>
+                    <div className="card">
+                        <div>
+                            <p className="label"><i className="bi bi-x-circle-fill" style={{ color: '#EF4444', marginRight: '8px' }}></i>Rejected Requests</p>
+                            <h2>{subscriptions.filter(s => s.status === 'REJECTED').length}</h2>
+                        </div>
+                    </div>
                 </div>
                 <div className="grid">
                     <div className="card">
@@ -162,28 +206,36 @@ const SubscriberDashboard = ({ navigate: navigateToPage }) => {
                     <p className="nav-label">Navigation</p>
                     {nav.map((n, i) => (
                         <button key={i} onClick={() => setView(n.view)} className={`nav-btn ${view === n.view ? 'active' : ''}`}>
-                            <span>{n.icon}</span>{n.name}
+                            <i className={`bi ${n.icon}`} style={{
+                                fontSize: '1.1rem',
+                                marginRight: '10px',
+                                width: '24px',
+                                textAlign: 'center'
+                            }}></i>
+                            <span>{n.name}</span>
                         </button>
                     ))}
                 </div>
             </div>
             <div className="main">
                 <div className="top">
-                    <button onClick={() => setOpen(!open)} className="menu">☰</button>
+                    <button onClick={() => setOpen(!open)} className="menu">
+                        <i className="bi bi-list" style={{ fontSize: '1.5rem' }}></i>
+                    </button>
                     <div className="actions">
                         <SubscriberNotification
-                            userEmail={currentEmail}
+                            userEmail={user.email}
                             subscriptions={subscriptions}
                             files={rawFiles}
                             approvedDomains={approvedDomains}
                         />
                         <button onClick={logout} className="logout-btn">
-                            <LogOut style={{ width: 16, height: 16 }} />
+                            <i className="bi bi-box-arrow-right" style={{ marginRight: '6px', fontSize: '16px' }}></i>
                             Logout
                         </button>
                     </div>
                 </div>
-                <div className="content" key={currentEmail}>{renderContent()}</div>
+                <div className="content">{renderContent()}</div>
             </div>
         </div>
     );
